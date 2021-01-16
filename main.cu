@@ -56,13 +56,15 @@ void process(vec3 *final_out,int image_width,int image_height,vec3 origin,vec3 h
 	}
 }
 
-__global__ void create_world(hittable **d_list, hittable_list **d_world)
+__global__
+void create_world(hittable **d_list, hittable_list **d_world)
  {
-    if (threadIdx.x == 0 && blockIdx.x == 0) {
-
-        d_list[0]   = new sphere(vec3(0,0,-1), 0.5);
-        d_list[1] = new sphere(vec3(0,-100.5,-1), 100);
-        *d_world    = new hittable_list(d_list,2);
+	if (threadIdx.x == 0 && blockIdx.x == 0)
+	{
+		*d_world    = new hittable_list(d_list,10);
+        (*d_world)->add(new sphere(vec3(0,0,-1), 0.5));
+        (*d_world)->add(new sphere(vec3(0,-100.5,-1), 100));
+        
     }
 }
 
@@ -97,7 +99,7 @@ int main()
 	hittable_list **d_world;
 	cudaMalloc(&d_world, sizeof(hittable_list *));
 	hittable **d_list;
-	cudaMalloc(&d_list, 5*sizeof(hittable **));
+	cudaMalloc(&d_list, 10*sizeof(hittable *));
 
     create_world<<<1,1>>>(d_list,d_world);
 	checkCudaErrors(cudaGetLastError());
