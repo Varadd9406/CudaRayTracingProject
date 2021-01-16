@@ -9,7 +9,7 @@
 #include "hittable.h"
 #include "sphere.h"
 #include "hittable_list.h"
-
+#include "camera.h"
 
 // limited version of checkCudaErrors from helper_cuda.h in CUDA examples
 #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
@@ -40,17 +40,19 @@ color ray_color(ray &r,hittable_list **world)
 }
 
 __global__
-void process(vec3 *final_out,int image_width,int image_height,vec3 origin,vec3 horizontal,vec3 vertical,vec3 lower_left_corner,hittable_list** world)
+void process(vec3 *final_out,int image_width,int image_height,hittable_list** world,camera *cam)
 {
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
 	for(int i=index;i<image_height*image_width;i+=stride)
 	{
-		int x = i%image_width;
+		int x = i%ima
+		ge_width;
 		int y = (image_height-1) -(i/image_width);
 		double u = double(x) / (image_width-1);
 		double v = double(y) / (image_height-1);
-		ray r(origin,lower_left_corner +u*horizontal+v*vertical - origin);
+
+		ray r = cam->get_ray(u,v);
 		color pixel_color = ray_color(r,world);
 		write_color(final_out,i,pixel_color);
 	}
@@ -79,14 +81,10 @@ int main()
 	vec3 *final_out = unified_ptr<vec3>(image_height*image_width*sizeof(vec3));
 
 	// Camera
-	double viewport_height = 2.0;
-    double viewport_width = aspect_ratio * viewport_height;
-    double focal_length = 1.0;
-
-    vec3 origin = point3(0, 0, 0);
-    vec3 horizontal = vec3(viewport_width, 0, 0);
-    vec3 vertical = vec3(0, viewport_height, 0);
-	vec3 lower_left_corner = origin - horizontal/2 - vertical/2 - vec3(0, 0, focal_length);
+	camera *h_cam = new camera();
+	camera *d_cam = cuda_ptr<camera>(h_cam,sizeof(camera));
+	delete h_cam;
+	
 
 
 	//Kernel Parameters
@@ -105,7 +103,7 @@ int main()
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
 	//Call Kernel
-	process<<<num_blocks,block_size>>>(final_out,image_width,image_height,origin,horizontal,vertical,lower_left_corner,d_world);
+	process<<<num_blocks,block_size>>>(final_out,image_width,image_height,d_world,d_cam);
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
 
