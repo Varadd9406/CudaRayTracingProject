@@ -28,6 +28,15 @@ class hittable_list :public hittable
     __device__ virtual bool hit(const ray& r, double tmin, double tmax, hit_record& rec) const;
 
 
+	__device__
+	~hittable_list()
+	{
+		for (int i = 0; i < cnt; i++)
+		{
+			delete objects[i];
+		}
+	}
+
 	public:
 	int cnt;
 	int max_elem;

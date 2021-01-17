@@ -80,6 +80,16 @@ void create_world(hittable **d_list, hittable_list **d_world)
 }
 
 
+__global__
+void free_world(hittable_list **d_world)
+{
+	if(threadIdx.x == 0 && blockIdx.x==0)
+	{
+		delete (*d_world);
+	}
+}
+
+
 int main()
 {
 
@@ -91,7 +101,7 @@ int main()
 	const double aspect_ratio = 16.0/9.0;
 	const int image_height = 1080;
 	const int image_width = static_cast<int>(image_height*aspect_ratio);
-	const int sample_size = 100;
+	const int sample_size = 50;
 
 
 
@@ -111,10 +121,11 @@ int main()
 
 
 	//World
-	hittable_list **d_world;
-	cudaMalloc(&d_world, sizeof(hittable_list *));
 	hittable **d_list;
 	cudaMalloc(&d_list, 10*sizeof(hittable *));
+	hittable_list **d_world;
+	cudaMalloc(&d_world, sizeof(hittable_list *));
+
 
     create_world<<<1,1>>>(d_list,d_world);
 	checkCudaErrors(cudaGetLastError());
@@ -124,13 +135,17 @@ int main()
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
 
+
+
+	
+	
+
     stop = clock();
 	double timer_seconds = ((double)(stop - start)) / CLOCKS_PER_SEC;
 	
 
-	//File Handling
+	//File Handling and Importing ppm
 	FILE* file1 = fopen("image1.ppm","w");
-	//Render
 
 	fprintf(file1,"P3 %d %d\n255\n",image_width,image_height);
 
@@ -138,7 +153,15 @@ int main()
 	{
 		fprintf(file1,"%d %d %d\n",(int) final_out[i][0],(int)final_out[i][1],(int)final_out[i][2]);
 	}
-	
+
 	std::cerr<<"Done in "<<timer_seconds<<"s\n";
-	cudaDeviceReset();
+	//Free Memory
+
+	free_world<<<1,1>>>(d_world);
+	checkCudaErrors(cudaFree(d_list));
+	checkCudaErrors(cudaFree(d_world));
+	checkCudaErrors(cudaFree(d_cam));
+	checkCudaErrors(cudaFree(final_out));
+
+	checkCudaErrors(cudaDeviceReset());
 }
