@@ -39,7 +39,7 @@ color ray_color(ray &r,int depth,hittable_list **world,curandState* rand_state)
 		hit_record rec;
 		if((*world)->hit(cur_ray,0.001,infinity,rec))
 		{
-			vec3 target = rec.p + rec.normal + random_in_unit_sphere(rand_state);
+			vec3 target = rec.p + rec.normal + random_unit_vector(rand_state);
 			cur_attenuation *= 0.5f;
 			cur_ray = ray(rec.p, target-rec.p);
 		}

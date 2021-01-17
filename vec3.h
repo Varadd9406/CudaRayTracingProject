@@ -117,12 +117,18 @@ vec3 random_vec3(curandState *thread_rand_state,double min, double max)
 }
 
 __device__
-vec3 random_in_unit_sphere(curandState *thread_rand_state)
+vec3 random_in_unit_sphere(curandState *rand_state)
 {
     while (true)
 	{
-        auto p = random_vec3(thread_rand_state,-1,1);
+        auto p = random_vec3(rand_state,-1,1);
         if (p.length_squared() >= 1) continue;
         return p;
     }
+}
+
+__device__
+vec3 random_unit_vector(curandState *rand_state)
+{
+    return unit_vector(random_in_unit_sphere(rand_state));
 }
