@@ -103,3 +103,26 @@ __device__ __host__
 vec3 unit_vector(vec3 v){
     return v / v.length();
 }
+
+__device__ 
+vec3 random_vec3(curandState *thread_rand_state)
+{
+    return vec3(random_double(thread_rand_state), random_double(thread_rand_state), random_double(thread_rand_state));
+}
+
+__device__
+vec3 random_vec3(curandState *thread_rand_state,double min, double max)
+{
+    return vec3(random_double(thread_rand_state,min,max), random_double(thread_rand_state,min,max), random_double(thread_rand_state,min,max));
+}
+
+__device__
+vec3 random_in_unit_sphere(curandState *thread_rand_state)
+{
+    while (true)
+	{
+        auto p = random_vec3(thread_rand_state,-1,1);
+        if (p.length_squared() >= 1) continue;
+        return p;
+    }
+}

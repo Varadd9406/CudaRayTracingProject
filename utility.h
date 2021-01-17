@@ -24,6 +24,12 @@ double random_double(curandState *thread_rand_state)
 	return curand_uniform(thread_rand_state);
 }
 
+__device__
+double random_double(curandState *thread_rand_state,double min, double max)
+{
+    return min + (max-min)*random_double(thread_rand_state);
+}
+
 
 __device__
 double clamp(double x,double mn,double mx)

@@ -30,19 +30,32 @@ void check_cuda(cudaError_t result, char const *const func, const char *const fi
 
 
 __device__
-color ray_color(ray &r,hittable_list **world)
+color ray_color(ray &r,int depth,hittable_list **world,curandState* rand_state)
 {	
-	hit_record rec;
-    if ((*world)->hit(r, 0, infinity, rec)) {
-        return 0.5 * (rec.normal + color(1,1,1));
-    }
-    vec3 unit_direction = unit_vector(r.direction());
-    auto t = 0.5*(unit_direction.y() + 1.0);
-    return (1.0-t)*color(1.0, 1.0, 1.0) + t*color(0.5, 0.7, 1.0);
+	ray cur_ray = r;
+	float cur_attenuation = 1.0f;
+	for(int i =0;i<depth;i++)
+	{
+		hit_record rec;
+		if((*world)->hit(cur_ray,0.001,infinity,rec))
+		{
+			vec3 target = rec.p + rec.normal + random_in_unit_sphere(rand_state);
+			cur_attenuation *= 0.5f;
+			cur_ray = ray(rec.p, target-rec.p);
+		}
+		else
+		{
+			vec3 unit_direction = unit_vector(cur_ray.direction());
+			float t = 0.5f*(unit_direction.y() + 1.0f);
+			vec3 c = (1.0f-t)*vec3(1.0, 1.0, 1.0) + t*vec3(0.5, 0.7, 1.0);
+			return cur_attenuation * c;
+		}
+	}
+	return vec3(0.0,0.0,0.0);
 }
 
 __global__
-void process(vec3 *final_out,int image_width,int image_height,int sample_size,hittable_list** world,camera *cam)
+void process(vec3 *final_out,int image_width,int image_height,int sample_size,int max_depth,hittable_list** world,camera *cam)
 {
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
@@ -60,9 +73,8 @@ void process(vec3 *final_out,int image_width,int image_height,int sample_size,hi
 			double v = double(y+random_double(&thread_rand_state)) / (image_height-1);
 	
 			ray r = cam->get_ray(u,v);
-			pixel_color += ray_color(r,world);
+			pixel_color += ray_color(r,max_depth,world,&thread_rand_state);
 		}
-
 		write_color(final_out,i,pixel_color,sample_size);
 	}
 }
@@ -102,6 +114,8 @@ int main()
 	const int image_height = 1080;
 	const int image_width = static_cast<int>(image_height*aspect_ratio);
 	const int sample_size = 50;
+	const int max_depth = 50;
+
 
 
 
@@ -133,7 +147,7 @@ int main()
 
 	
 	//Call Kernel
-	process<<<num_blocks,block_size>>>(final_out,image_width,image_height,sample_size,d_world,d_cam);
+	process<<<num_blocks,block_size>>>(final_out,image_width,image_height,sample_size,max_depth,d_world,d_cam);
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
 
