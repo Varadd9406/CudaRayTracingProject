@@ -9,6 +9,7 @@ struct hit_record
         front_face = dot(r.direction(), outward_normal) < 0;
         normal = front_face ? outward_normal :-outward_normal;
     }
+	material* mat_ptr;
 	point3 p;
 	vec3 normal;
 	double t;
