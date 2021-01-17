@@ -1,6 +1,8 @@
 #include <iostream>
 #include <math.h>
-#include <stdio.h> 
+#include <stdio.h>
+#include <curand_kernel.h>
+#include <time.h>
 #include "utility.h"
 #include "cudrank.h"
 #include "vec3.h"
@@ -40,21 +42,28 @@ color ray_color(ray &r,hittable_list **world)
 }
 
 __global__
-void process(vec3 *final_out,int image_width,int image_height,hittable_list** world,camera *cam)
+void process(vec3 *final_out,int image_width,int image_height,int sample_size,hittable_list** world,camera *cam)
 {
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
+	curandState thread_rand_state;
+	curand_init(index,0,0,&thread_rand_state);
 	for(int i=index;i<image_height*image_width;i+=stride)
 	{
-		int x = i%ima
-		ge_width;
-		int y = (image_height-1) -(i/image_width);
-		double u = double(x) / (image_width-1);
-		double v = double(y) / (image_height-1);
 
-		ray r = cam->get_ray(u,v);
-		color pixel_color = ray_color(r,world);
-		write_color(final_out,i,pixel_color);
+		int x = i%image_width;
+		int y = (image_height-1) -(i/image_width);
+		color pixel_color(0,0,0);
+		for(int sample=0;sample<sample_size;sample++)
+		{
+			double u = double(x+curand_uniform(&thread_rand_state)) / (image_width-1);
+			double v = double(y+curand_uniform(&thread_rand_state)) / (image_height-1);
+	
+			ray r = cam->get_ray(u,v);
+			pixel_color += ray_color(r,world);
+		}
+
+		write_color(final_out,i,pixel_color,sample_size);
 	}
 }
 
@@ -62,8 +71,8 @@ __global__
 void create_world(hittable **d_list, hittable_list **d_world)
  {
 	if (threadIdx.x == 0 && blockIdx.x == 0)
-	{
-		*d_world    = new hittable_list(d_list,10);
+	{ 
+		*d_world = new hittable_list(d_list,10);
         (*d_world)->add(new sphere(vec3(0,0,-1), 0.5));
         (*d_world)->add(new sphere(vec3(0,-100.5,-1), 100));
         
@@ -74,10 +83,18 @@ void create_world(hittable **d_list, hittable_list **d_world)
 int main()
 {
 
+	//Timer
+	clock_t start,stop;
+	start = clock();
+
 	// Image
 	const double aspect_ratio = 16.0/9.0;
 	const int image_height = 1080;
 	const int image_width = static_cast<int>(image_height*aspect_ratio);
+	const int sample_size = 100;
+
+
+
 	vec3 *final_out = unified_ptr<vec3>(image_height*image_width*sizeof(vec3));
 
 	// Camera
@@ -88,7 +105,7 @@ int main()
 
 
 	//Kernel Parameters
-	int block_size = 1024;
+	int block_size = 512;
 	int num_blocks = ceil(double(image_width*image_height))/double(block_size);
 
 
@@ -103,11 +120,13 @@ int main()
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
 	//Call Kernel
-	process<<<num_blocks,block_size>>>(final_out,image_width,image_height,d_world,d_cam);
+	process<<<num_blocks,block_size>>>(final_out,image_width,image_height,sample_size,d_world,d_cam);
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
 
-
+    stop = clock();
+	double timer_seconds = ((double)(stop - start)) / CLOCKS_PER_SEC;
+	
 
 	//File Handling
 	FILE* file1 = fopen("image1.ppm","w");
@@ -119,6 +138,7 @@ int main()
 	{
 		fprintf(file1,"%d %d %d\n",(int) final_out[i][0],(int)final_out[i][1],(int)final_out[i][2]);
 	}
-	std::cerr<<"Done";
+	
+	std::cerr<<"Done in "<<timer_seconds<<"s\n";
 	cudaDeviceReset();
 }
