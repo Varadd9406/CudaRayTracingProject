@@ -56,8 +56,8 @@ void process(vec3 *final_out,int image_width,int image_height,int sample_size,hi
 		color pixel_color(0,0,0);
 		for(int sample=0;sample<sample_size;sample++)
 		{
-			double u = double(x+curand_uniform(&thread_rand_state)) / (image_width-1);
-			double v = double(y+curand_uniform(&thread_rand_state)) / (image_height-1);
+			double u = double(x+random_double(&thread_rand_state)) / (image_width-1);
+			double v = double(y+random_double(&thread_rand_state)) / (image_height-1);
 	
 			ray r = cam->get_ray(u,v);
 			pixel_color += ray_color(r,world);
@@ -115,7 +115,7 @@ int main()
 
 
 	//Kernel Parameters
-	int block_size = 512;
+	int block_size = 256;
 	int num_blocks = ceil(double(image_width*image_height))/double(block_size);
 
 
@@ -130,6 +130,8 @@ int main()
     create_world<<<1,1>>>(d_list,d_world);
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
+
+	
 	//Call Kernel
 	process<<<num_blocks,block_size>>>(final_out,image_width,image_height,sample_size,d_world,d_cam);
 	checkCudaErrors(cudaGetLastError());
@@ -162,6 +164,7 @@ int main()
 	checkCudaErrors(cudaFree(d_world));
 	checkCudaErrors(cudaFree(d_cam));
 	checkCudaErrors(cudaFree(final_out));
+	
 
 	checkCudaErrors(cudaDeviceReset());
 }
