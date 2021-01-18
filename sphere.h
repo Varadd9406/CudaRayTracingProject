@@ -10,6 +10,11 @@ class sphere :public hittable
 	__device__ sphere(point3 cen, double r,material* m) : center(cen), radius(r),mat_ptr(m) {}
     __device__ bool hit(const ray& r, double tmin, double tmax, hit_record& rec) const override;
 
+	__device__ ~sphere()
+	{
+		delete mat_ptr;
+	}
+
 
 	public:
 	point3 center;
