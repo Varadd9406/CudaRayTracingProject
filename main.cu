@@ -8,11 +8,11 @@
 #include "vec3.h"
 #include "ray.h"
 #include "color.h"
+#include "material.h"
 #include "hittable.h"
 #include "sphere.h"
 #include "hittable_list.h"
 #include "camera.h"
-
 // limited version of checkCudaErrors from helper_cuda.h in CUDA examples
 #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
 
@@ -32,16 +32,25 @@ void check_cuda(cudaError_t result, char const *const func, const char *const fi
 __device__
 color ray_color(ray &r,int depth,hittable_list **world,curandState* rand_state)
 {	
-	ray cur_ray = r;
-	float cur_attenuation = 1.0f;
+	ray cur_ray =r;
+	color cur_attenuation =vec3(1.0,1.0,1.0);
 	for(int i =0;i<depth;i++)
 	{
 		hit_record rec;
 		if((*world)->hit(cur_ray,0.001,infinity,rec))
 		{
-			vec3 target = rec.p + rec.normal + random_unit_vector(rand_state);
-			cur_attenuation *= 0.5f;
-			cur_ray = ray(rec.p, target-rec.p);
+			ray scattered;
+			vec3 attenuation;
+
+			if (rec.mat_ptr->scatter(cur_ray, rec, attenuation, scattered,rand_state))
+			{
+				cur_attenuation *=attenuation;
+				cur_ray = scattered;
+			}
+			else
+			{
+				vec3(0.0,0.0,0.0);
+			}
 		}
 		else
 		{
@@ -85,9 +94,8 @@ void create_world(hittable **d_list, hittable_list **d_world)
 	if (threadIdx.x == 0 && blockIdx.x == 0)
 	{ 
 		*d_world = new hittable_list(d_list,10);
-        (*d_world)->add(new sphere(vec3(0,0,-1), 0.5));
-        (*d_world)->add(new sphere(vec3(0,-100.5,-1), 100));
-        
+        (*d_world)->add(new sphere(vec3(0,0,-1), 0.5, new lambertian(vec3(0.8, 0.3, 0.3))));
+        (*d_world)->add(new sphere(vec3(0,-100.5,-1), 100, new lambertian(vec3(0.8, 0.8, 0.0))));
     }
 }
 

@@ -1,8 +1,10 @@
-#pragma once
+#ifndef HITTABLEH
+#define HITTABLEH
 
+
+class material;
 struct hit_record
 {
-
 	__device__
 	void set_face_normal(const ray& r, const vec3& outward_normal)
 	{
@@ -26,4 +28,4 @@ class hittable
 
 };
 
-
+#endif

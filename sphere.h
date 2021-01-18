@@ -8,7 +8,7 @@ class sphere :public hittable
 	public:
 	__device__ sphere() {}
 	__device__ sphere(point3 cen, double r,material* m) : center(cen), radius(r),mat_ptr(m) {}
-    __device__ virtual bool hit(const ray& r, double tmin, double tmax, hit_record& rec) const;
+    __device__ bool hit(const ray& r, double tmin, double tmax, hit_record& rec) const override;
 
 
 	public:

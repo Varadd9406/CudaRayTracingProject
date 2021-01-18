@@ -25,7 +25,7 @@ class hittable_list :public hittable
 		objects[cnt++] = obj;
 	}
 
-    __device__ virtual bool hit(const ray& r, double tmin, double tmax, hit_record& rec) const;
+    __device__ bool hit(const ray& r, double tmin, double tmax, hit_record& rec) const override;
 
 
 	__device__
@@ -49,6 +49,7 @@ bool hittable_list::hit(const ray& r, double t_min, double t_max, hit_record& re
 	hit_record temp_rec;
 	bool hit_anything = false;
 	auto closest_so_far = t_max;
+
 
 	for (int i =0;i<cnt;i++)
 	{

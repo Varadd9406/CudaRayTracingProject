@@ -39,6 +39,13 @@ class vec3
             return *this;
         }
 		__device__ __host__
+        vec3& operator*=(const vec3 &v) {
+            e[0] *= v.e[0];
+            e[1] *= v.e[1];
+            e[2] *= v.e[2];
+            return *this;
+        }
+		__device__ __host__
         vec3& operator/=(const double t) {
             return *this *= 1/t;
         }
@@ -50,6 +57,12 @@ class vec3
         double length_squared() const {
             return e[0]*e[0] + e[1]*e[1] + e[2]*e[2];
         }
+		__device__ __host__
+    	bool near_zero() const 
+		{
+			const auto s = 1e-8;
+        	return (fabs(e[0]) < s) && (fabs(e[1]) < s) && (fabs(e[2]) < s);
+    	}
 
     public:
         double e[3];
