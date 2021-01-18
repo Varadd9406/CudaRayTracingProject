@@ -13,6 +13,8 @@
 #include "sphere.h"
 #include "hittable_list.h"
 #include "camera.h"
+
+
 // limited version of checkCudaErrors from helper_cuda.h in CUDA examples
 #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
 
@@ -96,8 +98,8 @@ void create_world(hittable **d_list, hittable_list **d_world)
 		*d_world = new hittable_list(d_list,10);
         (*d_world)->add(new sphere(point3(0,0,-1), 0.5, new lambertian(vec3(0.8, 0.3, 0.3))));
 		(*d_world)->add(new sphere(point3(0,-100.5,-1), 100, new lambertian(vec3(0.8, 0.8, 0.0))));
-		(*d_world)->add(new sphere(point3(-1.0, 0.0, -1.0), 0.5,new metal(color(0.8, 0.8, 0.8))));
-		(*d_world)->add(new sphere(point3( 1.0, 0.0, -1.0), 0.5,new metal(color(0.8, 0.8, 0.8))));
+		(*d_world)->add(new sphere(point3(-1.0, 0.0, -1.0), 0.5,new metal(color(0.8, 0.8, 0.8),1.0)));
+		(*d_world)->add(new sphere(point3( 1.0, 0.0, -1.0), 0.5,new metal(color(0.8, 0.8, 0.8),0)));
     }
 }
 
