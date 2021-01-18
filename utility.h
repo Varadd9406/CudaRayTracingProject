@@ -11,7 +11,7 @@
 // Utility Functions
 
 
-__device__
+__device__ __host__
 double degrees_to_radians(double degrees)
 {
 	return (degrees*pi)/180.0;
@@ -31,7 +31,7 @@ double random_double(curandState *thread_rand_state,double min, double max)
 }
 
 
-__device__
+__device__ __host__
 double clamp(double x,double mn,double mx)
 {
 	if (x<mn) return mn;

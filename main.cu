@@ -98,7 +98,7 @@ void create_world(hittable **d_list, hittable_list **d_world)
 		*d_world = new hittable_list(d_list,10);
         (*d_world)->add(new sphere(point3(0,0,-1), 0.5, new lambertian(vec3(0.8, 0.3, 0.3))));
 		(*d_world)->add(new sphere(point3(0,-100.5,-1), 100, new lambertian(vec3(0.8, 0.8, 0.0))));
-		(*d_world)->add(new sphere(point3(-1.0, 0.0, -1.0), 0.5,new metal(color(0.8, 0.8, 0.8),1.0)));
+		(*d_world)->add(new sphere(point3(-1.0, 0.0, -1.0), 0.5,new dielectric(1.5)));
 		(*d_world)->add(new sphere(point3( 1.0, 0.0, -1.0), 0.5,new metal(color(0.8, 0.8, 0.8),0)));
     }
 }
@@ -125,8 +125,8 @@ int main()
 	const double aspect_ratio = 16.0/9.0;
 	const int image_height = 1080;
 	const int image_width = static_cast<int>(image_height*aspect_ratio);
-	const int sample_size = 50;
-	const int max_depth = 25;
+	const int sample_size = 100;
+	const int max_depth = 50;
 
 
 
@@ -134,7 +134,7 @@ int main()
 	vec3 *final_out = unified_ptr<vec3>(image_height*image_width*sizeof(vec3));
 
 	// Camera
-	camera *h_cam = new camera();
+	camera *h_cam = new camera(point3(-2,2,1), point3(0,0,-1), vec3(0,1,0), 90, aspect_ratio);
 	camera *d_cam = cuda_ptr<camera>(h_cam,sizeof(camera));
 	delete h_cam;
 	
