@@ -95,11 +95,45 @@ void create_world(hittable **d_list, hittable_list **d_world)
  {
 	if (threadIdx.x == 0 && blockIdx.x == 0)
 	{ 
-		*d_world = new hittable_list(d_list,10);
-        (*d_world)->add(new sphere(point3(0,0,-1), 0.5, new lambertian(vec3(0.8, 0.3, 0.3))));
-		(*d_world)->add(new sphere(point3(0,-100.5,-1), 100, new lambertian(vec3(0.8, 0.8, 0.0))));
-		(*d_world)->add(new sphere(point3(-1.0, 0.0, -1.0), 0.5,new dielectric(1.5)));
-		(*d_world)->add(new sphere(point3( 1.0, 0.0, -1.0), 0.5,new metal(color(0.8, 0.8, 0.8),0)));
+
+
+		*d_world = new hittable_list(d_list,500);
+		(*d_world)->add(new sphere(point3(0,-1000,0), 1000, new lambertian(color(0.5, 0.5, 0.5))));
+		
+		for (int a = -11; a < 11; a++) {
+			for (int b = -11; b < 11; b++) {
+				double choose_mat = random_double(&thread_rand_state);
+				point3 center(a + 0.9*random_double(&thread_rand_state), 0.2, b + 0.9*random_double(&thread_rand_state));
+	
+				if ((center - point3(4, 0.2, 0)).length() > 0.9)
+				{	
+					if (choose_mat < 0.8){
+						// diffuse
+						auto albedo = random_vec3(&thread_rand_state) *random_vec3(&thread_rand_state);
+						(*d_world)->add(new sphere(center, 0.2, new lambertian(albedo)));
+					} 
+					else if (choose_mat < 0.95)
+					{
+						// metal
+						auto albedo = random_vec3(&thread_rand_state,0.5, 1.0);
+						auto fuzz = random_double(&thread_rand_state,0, 0.5);
+						(*d_world)->add(new sphere(center, 0.2, new metal(albedo, fuzz)));
+					} 
+					else
+					{
+						// glass
+						(*d_world)->add(new sphere(center, 0.2, new dielectric(1.5)));
+					}
+				}
+			}
+		}
+	
+		(*d_world)->add(new sphere(point3(0, 1, 0), 1.0, new dielectric(1.5)));
+	
+		(*d_world)->add(new sphere(point3(-4, 1, 0), 1.0, new lambertian(color(0.4, 0.2, 0.1))));
+	
+		(*d_world)->add(new sphere(point3(4, 1, 0), 1.0, new metal(color(0.7, 0.6, 0.5), 0.0)));
+	
     }
 }
 
@@ -117,16 +151,13 @@ void free_world(hittable_list **d_world)
 int main()
 {
 
-	//Timer
-	clock_t start,stop;
-	start = clock();
 
 	// Image
 	const double aspect_ratio = 16.0/9.0;
 	const int image_height = 1080;
 	const int image_width = static_cast<int>(image_height*aspect_ratio);
-	const int sample_size = 100;
-	const int max_depth = 50;
+	const int sample_size = 50;
+	const int max_depth = 25;
 
 
 
@@ -134,28 +165,38 @@ int main()
 	vec3 *final_out = unified_ptr<vec3>(image_height*image_width*sizeof(vec3));
 
 	// Camera
-	camera *h_cam = new camera(point3(-2,2,1), point3(0,0,-1), vec3(0,1,0), 90, aspect_ratio);
+	point3 lookfrom(13,2,3);
+    point3 lookat(0,0,0);
+    vec3 vup(0,1,0);
+
+	
+	camera *h_cam = new camera(lookfrom, lookat, vup, 20, aspect_ratio);
 	camera *d_cam = cuda_ptr<camera>(h_cam,sizeof(camera));
 	delete h_cam;
 	
 
 
 	//Kernel Parameters
-	int block_size = 256;
+	int block_size = 512;
 	int num_blocks = ceil(double(image_width*image_height))/double(block_size);
 
 
 
 	//World
+	
 	hittable **d_list;
-	cudaMalloc(&d_list, 10*sizeof(hittable *));
+	cudaMalloc(&d_list, 500*sizeof(hittable *));
 	hittable_list **d_world;
 	cudaMalloc(&d_world, sizeof(hittable_list *));
+	curandState *thread_rand_state;
+	cudaMalloc(&thread_rand_state,sizeof(curandState));
 
 
     create_world<<<1,1>>>(d_list,d_world);
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
+	clock_t start,stop;
+	start = clock();
 
 	
 	//Call Kernel
@@ -169,7 +210,7 @@ int main()
 	
 
     stop = clock();
-	double timer_seconds = ((double)(stop - start)) / CLOCKS_PER_SEC;
+	double timer_seconds = ((static_cast<double>(stop - start))) / CLOCKS_PER_SEC;
 	
 
 	//File Handling and Importing ppm
@@ -179,7 +220,7 @@ int main()
 
 	for (int i = 0; i<image_width*image_height; i++)
 	{
-		fprintf(file1,"%d %d %d\n",(int) final_out[i][0],(int)final_out[i][1],(int)final_out[i][2]);
+		fprintf(file1,"%d %d %d\n",static_cast<int>(final_out[i][0]),static_cast<int>(final_out[i][1]),static_cast<int>(final_out[i][2]));
 	}
 
 	std::cerr<<"Done in "<<timer_seconds<<"s\n";
