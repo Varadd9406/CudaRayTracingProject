@@ -66,12 +66,10 @@ color ray_color(ray &r,int depth,hittable_list **world,curandState* rand_state)
 }
 
 __global__
-void process(vec3 *final_out,int image_width,int image_height,int sample_size,int max_depth,hittable_list** world,camera *cam)
+void process(vec3 *final_out,int image_width,int image_height,int sample_size,int max_depth,hittable_list** world,camera *cam,curandState *thread_rand_state)
 {
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
-	curandState thread_rand_state;
-	curand_init(index,0,0,&thread_rand_state);
 	for(int i=index;i<image_height*image_width;i+=stride)
 	{
 
@@ -80,43 +78,42 @@ void process(vec3 *final_out,int image_width,int image_height,int sample_size,in
 		color pixel_color(0,0,0);
 		for(int sample=0;sample<sample_size;sample++)
 		{
-			double u = double(x+random_double(&thread_rand_state)) / (image_width-1);
-			double v = double(y+random_double(&thread_rand_state)) / (image_height-1);
+			double u = double(x+random_double(thread_rand_state)) / (image_width-1);
+			double v = double(y+random_double(thread_rand_state)) / (image_height-1);
 	
 			ray r = cam->get_ray(u,v);
-			pixel_color += ray_color(r,max_depth,world,&thread_rand_state);
+			pixel_color += ray_color(r,max_depth,world,thread_rand_state);
 		}
 		write_color(final_out,i,pixel_color,sample_size);
 	}
 }
 
 __global__
-void create_world(hittable **d_list, hittable_list **d_world)
+void create_world(hittable **d_list, hittable_list **d_world,curandState *thread_rand_state)
  {
 	if (threadIdx.x == 0 && blockIdx.x == 0)
-	{ 
-
+	{
 
 		*d_world = new hittable_list(d_list,500);
 		(*d_world)->add(new sphere(point3(0,-1000,0), 1000, new lambertian(color(0.5, 0.5, 0.5))));
 		
 		for (int a = -11; a < 11; a++) {
 			for (int b = -11; b < 11; b++) {
-				double choose_mat = random_double(&thread_rand_state);
-				point3 center(a + 0.9*random_double(&thread_rand_state), 0.2, b + 0.9*random_double(&thread_rand_state));
+				double choose_mat = random_double(thread_rand_state);
+				point3 center(a + 0.9*random_double(thread_rand_state), 0.2, b + 0.9*random_double(thread_rand_state));
 	
 				if ((center - point3(4, 0.2, 0)).length() > 0.9)
 				{	
 					if (choose_mat < 0.8){
 						// diffuse
-						auto albedo = random_vec3(&thread_rand_state) *random_vec3(&thread_rand_state);
+						auto albedo = random_vec3(thread_rand_state) *random_vec3(thread_rand_state);
 						(*d_world)->add(new sphere(center, 0.2, new lambertian(albedo)));
 					} 
 					else if (choose_mat < 0.95)
 					{
 						// metal
-						auto albedo = random_vec3(&thread_rand_state,0.5, 1.0);
-						auto fuzz = random_double(&thread_rand_state,0, 0.5);
+						auto albedo = random_vec3(thread_rand_state,0.5, 1.0);
+						auto fuzz = random_double(thread_rand_state,0, 0.5);
 						(*d_world)->add(new sphere(center, 0.2, new metal(albedo, fuzz)));
 					} 
 					else
@@ -154,7 +151,7 @@ int main()
 
 	// Image
 	const double aspect_ratio = 16.0/9.0;
-	const int image_height = 1080;
+	const int image_height = 50;
 	const int image_width = static_cast<int>(image_height*aspect_ratio);
 	const int sample_size = 50;
 	const int max_depth = 25;
@@ -192,7 +189,7 @@ int main()
 	cudaMalloc(&thread_rand_state,sizeof(curandState));
 
 
-    create_world<<<1,1>>>(d_list,d_world);
+    create_world<<<1,1>>>(d_list,d_world,thread_rand_state);
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
 	clock_t start,stop;
@@ -200,7 +197,7 @@ int main()
 
 	
 	//Call Kernel
-	process<<<num_blocks,block_size>>>(final_out,image_width,image_height,sample_size,max_depth,d_world,d_cam);
+	process<<<num_blocks,block_size>>>(final_out,image_width,image_height,sample_size,max_depth,d_world,d_cam,thread_rand_state);
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
 
