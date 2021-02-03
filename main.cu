@@ -13,6 +13,7 @@
 #include "sphere.h"
 #include "hittable_list.h"
 #include "camera.h"
+#include "ppm_to_jpeg.h"
 
 
 // limited version of checkCudaErrors from helper_cuda.h in CUDA examples
@@ -155,7 +156,7 @@ int main()
 
 	// Image
 	const double aspect_ratio = 16.0/9.0;
-	const int image_height = 1080;
+	const int image_height = 400;
 	const int image_width = static_cast<int>(image_height*aspect_ratio);
 	const int sample_size = 50;
 	const int max_depth = 25;
@@ -217,6 +218,9 @@ int main()
 		fprintf(file1,"%d %d %d\n",static_cast<int>(final_out[i][0]),static_cast<int>(final_out[i][1]),static_cast<int>(final_out[i][2]));
 	}
 
+	fclose(file1);
+
+
 	std::cerr<<"Done in "<<timer_seconds<<"s\n";
 	//Free Memory
 
@@ -225,7 +229,11 @@ int main()
 	checkCudaErrors(cudaFree(d_world));
 	checkCudaErrors(cudaFree(d_cam));
 	checkCudaErrors(cudaFree(final_out));
-	
-
 	checkCudaErrors(cudaDeviceReset());
+	checkCudaErrors(cudaDeviceSynchronize());
+
+
+	//Change to JPEG
+	PPM_to_JPEG();
+
 }
