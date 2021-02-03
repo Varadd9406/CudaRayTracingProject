@@ -156,7 +156,7 @@ int main()
 
 	// Image
 	const double aspect_ratio = 16.0/9.0;
-	const int image_height = 400;
+	const int image_height = 1080;
 	const int image_width = static_cast<int>(image_height*aspect_ratio);
 	const int sample_size = 50;
 	const int max_depth = 25;
