@@ -101,7 +101,10 @@ void create_world(hittable **d_list, hittable_list **d_world)
 		curandState thread_rand_state ;
 		curand_init(2020,0,0,&thread_rand_state);
 		*d_world = new hittable_list(d_list,500);
-		(*d_world)->add(new sphere(point3(0,-1000,0), 1000, new lambertian(new solid_color(color(0.5, 0.5, 0.5)))));
+		
+
+		checker_texture *ground_mat = new checker_texture(new solid_color(color(0.2, 0.3, 0.1)),new solid_color(color(0.9, 0.9, 0.9)));
+		(*d_world)->add(new sphere(point3(0,-1000,0), 1000, new lambertian(ground_mat)));
 	
 		(*d_world)->add(new sphere(point3(0, 1, 0), 1.0, new dielectric(1.5)));
 	
@@ -129,7 +132,7 @@ int main()
 
 	// Image
 	const double aspect_ratio = 16.0/9.0;
-	const int image_height = 200;
+	const int image_height = 1080;
 	const int image_width = static_cast<int>(image_height*aspect_ratio);
 	const int sample_size = 50;
 	const int max_depth = 25;
