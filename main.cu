@@ -101,39 +101,11 @@ void create_world(hittable **d_list, hittable_list **d_world)
 		curandState thread_rand_state ;
 		curand_init(2020,0,0,&thread_rand_state);
 		*d_world = new hittable_list(d_list,500);
-		(*d_world)->add(new sphere(point3(0,-1000,0), 1000, new lambertian(color(0.5, 0.5, 0.5))));
-		
-		for (int a = -11; a < 11; a++) {
-			for (int b = -11; b < 11; b++) {
-				double choose_mat = random_double(&thread_rand_state);
-				point3 center(a + 0.9*random_double(&thread_rand_state), 0.2, b + 0.9*random_double(&thread_rand_state));
-	
-				if ((center - point3(4, 0.2, 0)).length() > 0.9)
-				{	
-					if (choose_mat < 0.8){
-						// diffuse
-						auto albedo = random_vec3(&thread_rand_state) *random_vec3(&thread_rand_state);
-						(*d_world)->add(new sphere(center, 0.2, new lambertian(albedo)));
-					} 
-					else if (choose_mat < 0.95)
-					{
-						// metal
-						auto albedo = random_vec3(&thread_rand_state,0.5, 1.0);
-						auto fuzz = random_double(&thread_rand_state,0, 0.5);
-						(*d_world)->add(new sphere(center, 0.2, new metal(albedo, fuzz)));
-					} 
-					else
-					{
-						// glass
-						(*d_world)->add(new sphere(center, 0.2, new dielectric(1.5)));
-					}
-				}
-			}
-		}
+		(*d_world)->add(new sphere(point3(0,-1000,0), 1000, new lambertian(new solid_color(color(0.5, 0.5, 0.5)))));
 	
 		(*d_world)->add(new sphere(point3(0, 1, 0), 1.0, new dielectric(1.5)));
 	
-		(*d_world)->add(new sphere(point3(-4, 1, 0), 1.0, new lambertian(color(0.4, 0.2, 0.1))));
+		(*d_world)->add(new sphere(point3(-4, 1, 0), 1.0, new lambertian(new solid_color(color(0.4, 0.2, 0.1)))));
 	
 		(*d_world)->add(new sphere(point3(4, 1, 0), 1.0, new metal(color(0.7, 0.6, 0.5), 0.0)));
 	

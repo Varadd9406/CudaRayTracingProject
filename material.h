@@ -13,9 +13,9 @@ class lambertian : public material
 {
 public:
 	__device__
-	lambertian(const color &a)
+	lambertian(textureMat* x)
 	{
-		albedo = solid_color(a);
+		albedo = x;
 	}
 
 	__device__ bool scatter(const ray &r_in, const hit_record &rec, color &attenuation, ray &scattered, curandState *thread_rand_state) const override
@@ -26,12 +26,12 @@ public:
 			scatter_direction = rec.normal;
 		}
 		scattered = ray(rec.p, scatter_direction);
-		attenuation = albedo.value(rec.u, rec.v, rec.p);
+		attenuation = albedo->value(rec.u, rec.v, rec.p);
 		return true;
 	}
 
 public:
-	solid_color albedo;
+	textureMat* albedo;
 };
 
 class metal : public material
