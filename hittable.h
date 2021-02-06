@@ -1,5 +1,4 @@
-#ifndef HITTABLEH
-#define HITTABLEH
+#pragma once
 
 
 class material;
@@ -15,6 +14,7 @@ struct hit_record
 	point3 p;
 	vec3 normal;
 	double t;
+	double u,v;
 	bool front_face;
 };
 
@@ -28,4 +28,3 @@ class hittable
 
 };
 
-#endif
