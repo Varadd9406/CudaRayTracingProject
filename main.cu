@@ -36,6 +36,7 @@ void check_cuda(cudaError_t result, char const *const func, const char *const fi
 __device__
 color ray_color(ray &r,int depth,hittable_list **world,curandState* rand_state)
 {	
+	color background(0,0,0);
 	ray cur_ray =r;
 	color cur_attenuation =vec3(1.0,1.0,1.0);
 	for(int i =0;i<depth;i++)
@@ -45,23 +46,21 @@ color ray_color(ray &r,int depth,hittable_list **world,curandState* rand_state)
 		{
 			ray scattered;
 			vec3 attenuation;
+			color emitted = rec.mat_ptr->emitted(rec.u,rec.v,rec.p);
 
 			if (rec.mat_ptr->scatter(cur_ray, rec, attenuation, scattered,rand_state))
 			{
-				cur_attenuation *=attenuation;
+				cur_attenuation =attenuation*cur_attenuation + emitted;
 				cur_ray = scattered;
 			}
 			else
 			{
-				vec3(0.0,0.0,0.0);
+				return cur_attenuation*emitted;
 			}
 		}
 		else
 		{
-			vec3 unit_direction = unit_vector(cur_ray.direction());
-			float t = 0.5f*(unit_direction.y() + 1.0f);
-			vec3 c = (1.0f-t)*vec3(1.0, 1.0, 1.0) + t*vec3(0.5, 0.7, 1.0);
-			return cur_attenuation * c;
+			return cur_attenuation * background;
 		}
 	}
 	return vec3(0.0,0.0,0.0);
@@ -106,7 +105,7 @@ void create_world(hittable **d_list, hittable_list **d_world)
 		checker_texture *ground_mat = new checker_texture(new solid_color(color(0.2, 0.3, 0.1)),new solid_color(color(0.9, 0.9, 0.9)));
 		(*d_world)->add(new sphere(point3(0,-1000,0), 1000, new lambertian(ground_mat)));
 	
-		(*d_world)->add(new sphere(point3(0, 1, 0), 1.0, new dielectric(1.5)));
+		(*d_world)->add(new sphere(point3(0, 1, 0), 1.0, new diffuse_light(new solid_color(color(1,1,1)) )));
 	
 		(*d_world)->add(new sphere(point3(-4, 1, 0), 1.0, new lambertian(new solid_color(color(0.4, 0.2, 0.1)))));
 	
@@ -134,8 +133,8 @@ int main()
 	const double aspect_ratio = 16.0/9.0;
 	const int image_height = 1080;
 	const int image_width = static_cast<int>(image_height*aspect_ratio);
-	const int sample_size = 50;
-	const int max_depth = 25;
+	const int sample_size = 1000;
+	const int max_depth = 50;
 
 
 

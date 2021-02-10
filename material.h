@@ -7,13 +7,17 @@ public:
 	__device__
 	material() {}
 	__device__ virtual bool scatter(const ray &r_in, const hit_record &rec, color &attenuation, ray &scattered, curandState *thread_rand_state) const = 0;
+	__device__ virtual color emitted(double u, double v, const point3 &p) const
+	{
+		return color(0, 0, 0);
+	}
 };
 
 class lambertian : public material
 {
 public:
 	__device__
-	lambertian(textureMat* x)
+	lambertian(textureMat *x)
 	{
 		albedo = x;
 	}
@@ -31,7 +35,7 @@ public:
 	}
 
 public:
-	textureMat* albedo;
+	textureMat *albedo;
 };
 
 class metal : public material
@@ -89,4 +93,21 @@ private:
 		r0 = r0 * r0;
 		return r0 + (1 - r0) * pow(double(1 - cosine), 5.0);
 	}
+};
+
+class diffuse_light : public material
+{
+public:
+	__device__
+	diffuse_light(textureMat *a) : emit(a) {}
+	__device__ bool scatter(const ray &r_in, const hit_record &rec, color &attenuation, ray &scattered, curandState *thread_rand_state) const override
+	{
+		return false;
+	}
+	__device__ color emitted(double u,double v, const point3& p) const
+	{
+		return emit->value(u,v,p);
+	}
+public:
+	textureMat* emit;
 };
