@@ -15,7 +15,7 @@
 #include "hittable_list.h"
 #include "camera.h"
 #include "ppm_to_jpeg.h"
-
+#include "aarect.h"
 
 // limited version of checkCudaErrors from helper_cuda.h in CUDA examples
 #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
@@ -105,11 +105,12 @@ void create_world(hittable **d_list, hittable_list **d_world)
 		checker_texture *ground_mat = new checker_texture(new solid_color(color(0.2, 0.3, 0.1)),new solid_color(color(0.9, 0.9, 0.9)));
 		(*d_world)->add(new sphere(point3(0,-1000,0), 1000, new lambertian(ground_mat)));
 	
-		(*d_world)->add(new sphere(point3(0, 1, 0), 1.0, new diffuse_light(new solid_color(color(1,1,1)) )));
-	
-		(*d_world)->add(new sphere(point3(-4, 1, 0), 1.0, new lambertian(new solid_color(color(0.4, 0.2, 0.1)))));
-	
-		(*d_world)->add(new sphere(point3(4, 1, 0), 1.0, new metal(color(0.7, 0.6, 0.5), 0.0)));
+		(*d_world)->add(new sphere(point3(0, 2, 0), 2.0, new lambertian(new solid_color(color(0.3,0.1,0.4)))));
+		
+		(*d_world)->add(new xy_rect(3,5,1,3,-2,new diffuse_light(new solid_color(color(4,4,4)) ))) ;
+
+		
+
 	
     }
 }
@@ -142,8 +143,8 @@ int main()
 	vec3 *final_out = unified_ptr<vec3>(image_height*image_width*sizeof(vec3));
 
 	// Camera
-	point3 lookfrom(13,2,3);
-    point3 lookat(0,0,0);
+	point3 lookfrom(26,3,6);
+    point3 lookat(0,2,0);
     vec3 vup(0,1,0);
 
 	
