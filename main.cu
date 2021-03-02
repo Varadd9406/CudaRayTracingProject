@@ -36,6 +36,7 @@ void check_cuda(cudaError_t result, char const *const func, const char *const fi
 __device__
 color ray_color(ray &r,int depth,hittable_list **world,curandState* rand_state)
 {	
+	// color background(0.70, 0.80, 1.00);
 	color background(0,0,0);
 	ray cur_ray =r;
 	color cur_attenuation =vec3(1.0,1.0,1.0);
@@ -102,16 +103,18 @@ void create_world(hittable **d_list, hittable_list **d_world)
 		*d_world = new hittable_list(d_list,500);
 		
 
-		checker_texture *ground_mat = new checker_texture(new solid_color(color(0.2, 0.3, 0.1)),new solid_color(color(0.9, 0.9, 0.9)));
-		(*d_world)->add(new sphere(point3(0,-1000,0), 1000, new lambertian(ground_mat)));
-	
-		(*d_world)->add(new sphere(point3(0, 2, 0), 2.0, new lambertian(new solid_color(color(0.3,0.1,0.4)))));
-		
-		(*d_world)->add(new xy_rect(3,5,1,3,-2,new diffuse_light(new solid_color(color(4,4,4)) ))) ;
+		auto red   = new lambertian(new solid_color(color(.65, .05, .05)));
+		auto white = new lambertian(new solid_color(color(.73, .73, .73)));
+		auto green = new lambertian(new solid_color(color(.12, .45, .15)));
+		auto light = new diffuse_light(new solid_color(color(15, 15, 15)));
 
-		
 
-	
+		(*d_world)->add(new yz_rect(0, 555, 0, 555, 555, green));
+		(*d_world)->add(new yz_rect(0, 555, 0, 555, 0, red));
+		(*d_world)->add(new xz_rect(213, 343, 227, 332, 554, light));
+		(*d_world)->add(new xz_rect(0, 555, 0, 555, 0, white));
+		(*d_world)->add(new xz_rect(0, 555, 0, 555, 555, white));
+		(*d_world)->add(new xy_rect(0, 555, 0, 555, 555, white));	
     }
 }
 
@@ -134,7 +137,7 @@ int main()
 	const double aspect_ratio = 16.0/9.0;
 	const int image_height = 1080;
 	const int image_width = static_cast<int>(image_height*aspect_ratio);
-	const int sample_size = 1000;
+	const int sample_size = 5000;
 	const int max_depth = 50;
 
 
@@ -143,12 +146,12 @@ int main()
 	vec3 *final_out = unified_ptr<vec3>(image_height*image_width*sizeof(vec3));
 
 	// Camera
-	point3 lookfrom(26,3,6);
-    point3 lookat(0,2,0);
+	point3 lookfrom(278, 278, -800);
+    point3 lookat(278, 278, 0);
     vec3 vup(0,1,0);
 
 	
-	camera *h_cam = new camera(lookfrom, lookat, vup, 20, aspect_ratio);
+	camera *h_cam = new camera(lookfrom, lookat, vup, 40, aspect_ratio);
 	camera *d_cam = cuda_ptr<camera>(h_cam,sizeof(camera));
 	delete h_cam;
 	
