@@ -16,6 +16,7 @@
 #include "camera.h"
 #include "ppm_to_jpeg.h"
 #include "aarect.h"
+#include "box.h"
 
 // limited version of checkCudaErrors from helper_cuda.h in CUDA examples
 #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
@@ -115,6 +116,8 @@ void create_world(hittable_list **d_world)
 		(*d_world)->add(new xz_rect(0, 555, 0, 555, 0, white));
 		(*d_world)->add(new xz_rect(0, 555, 0, 555, 555, white));
 		(*d_world)->add(new xy_rect(0, 555, 0, 555, 555, white));	
+		(*d_world)->add(new box(point3(130, 0, 65), point3(295, 165, 230), white));
+		(*d_world)->add(new box(point3(265, 0, 295), point3(430, 330, 460), white));
     }
 }
 
@@ -135,7 +138,7 @@ int main()
 
 	// Image
 	const double aspect_ratio = 16.0/9.0;
-	const int image_height = 1080;
+	const int image_height = 720;
 	const int image_width = static_cast<int>(image_height*aspect_ratio);
 	const int sample_size = 5000;
 	const int max_depth = 50;
@@ -165,8 +168,6 @@ int main()
 
 	//World
 	
-	// hittable **d_list;
-	// cudaMalloc(&d_list, 500*sizeof(hittable *));
 	hittable_list **d_world;
 	cudaMalloc(&d_world, sizeof(hittable_list *));
 
