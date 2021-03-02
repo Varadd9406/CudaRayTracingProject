@@ -12,9 +12,9 @@ class hittable_list :public hittable
 	}
 
 	__device__
-	hittable_list(hittable** list,int mx)
+	hittable_list(int mx)
 	{
-		objects = list;
+		objects =  new hittable*[mx];
 		cnt = 0;
 		max_elem = mx;
 	}

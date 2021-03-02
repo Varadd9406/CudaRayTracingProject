@@ -93,14 +93,14 @@ void process(vec3 *final_out,int image_width,int image_height,int sample_size,in
 }
 
 __global__
-void create_world(hittable **d_list, hittable_list **d_world)
+void create_world(hittable_list **d_world)
  {
 	if (threadIdx.x == 0 && blockIdx.x == 0)
 	{
 
 		curandState thread_rand_state ;
 		curand_init(2020,0,0,&thread_rand_state);
-		*d_world = new hittable_list(d_list,500);
+		*d_world = new hittable_list(500);
 		
 
 		auto red   = new lambertian(new solid_color(color(.65, .05, .05)));
@@ -165,13 +165,13 @@ int main()
 
 	//World
 	
-	hittable **d_list;
-	cudaMalloc(&d_list, 500*sizeof(hittable *));
+	// hittable **d_list;
+	// cudaMalloc(&d_list, 500*sizeof(hittable *));
 	hittable_list **d_world;
 	cudaMalloc(&d_world, sizeof(hittable_list *));
 
 
-    create_world<<<1,1>>>(d_list,d_world);
+    create_world<<<1,1>>>(d_world);
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
 	clock_t start,stop;
@@ -204,7 +204,6 @@ int main()
 	//Free Memory
 
 	free_world<<<1,1>>>(d_world);
-	checkCudaErrors(cudaFree(d_list));
 	checkCudaErrors(cudaFree(d_world));
 	checkCudaErrors(cudaFree(d_cam));
 	checkCudaErrors(cudaFree(final_out));
