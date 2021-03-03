@@ -108,9 +108,10 @@ void create_world(hittable_list **d_world)
 		auto white = new lambertian(new solid_color(color(.73, .73, .73)));
 		auto green = new lambertian(new solid_color(color(.12, .45, .15)));
 		auto light = new diffuse_light(new solid_color(color(15, 15, 15)));
+		auto white_metal = new metal(color(1,0.7,1),0);
 
 
-		(*d_world)->add(new yz_rect(0, 555, 0, 555, 555, green));
+		(*d_world)->add(new yz_rect(0, 555, 0, 555, 555, white_metal));
 		(*d_world)->add(new yz_rect(0, 555, 0, 555, 0, red));
 		(*d_world)->add(new xz_rect(213, 343, 227, 332, 554, light));
 		(*d_world)->add(new xz_rect(0, 555, 0, 555, 0, white));
