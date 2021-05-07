@@ -14,9 +14,13 @@
 #include "sphere.h"
 #include "hittable_list.h"
 #include "camera.h"
-#include "ppm_to_jpeg.h"
+// #include "ppm_to_png.h"
 #include "aarect.h"
 #include "box.h"
+#include "path.h"
+#include "straight_path.h"
+#include "circular_path.h"
+#include "moving_sphere.h"
 
 // limited version of checkCudaErrors from helper_cuda.h in CUDA examples
 #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
@@ -93,9 +97,39 @@ void process(vec3 *final_out,int image_width,int image_height,int sample_size,in
 	}
 }
 
+// __global__
+// void create_world(hittable_list **d_world)
+//  {
+// 	if (threadIdx.x == 0 && blockIdx.x == 0)
+// 	{
+
+// 		curandState thread_rand_state ;
+// 		curand_init(2020,0,0,&thread_rand_state);
+// 		*d_world = new hittable_list(500);
+		
+
+// 		auto red   = new lambertian(new solid_color(color(.65, .05, .05)));
+// 		auto white = new lambertian(new solid_color(color(.73, .73, .73)));
+// 		auto green = new lambertian(new solid_color(color(.12, .45, .15)));
+// 		auto light = new diffuse_light(new solid_color(color(15, 15, 15)));
+// 		auto white_metal = new metal(color(1,0.7,1),0);
+
+
+// 		(*d_world)->add(new yz_rect(0, 555, 0, 555, 555, white_metal));
+// 		(*d_world)->add(new yz_rect(0, 555, 0, 555, 0, red));
+// 		(*d_world)->add(new xz_rect(213, 343, 227, 332, 554, light));
+// 		(*d_world)->add(new xz_rect(0, 555, 0, 555, 0, white));
+// 		(*d_world)->add(new xz_rect(0, 555, 0, 555, 555, white));
+// 		(*d_world)->add(new xy_rect(0, 555, 0, 555, 555, white));	
+// 		(*d_world)->add(new box(point3(130, 0, 65), point3(295, 165, 230), white));
+// 		(*d_world)->add(new box(point3(265, 0, 295), point3(430, 330, 460), white));
+//     }
+// }
+
+
 __global__
-void create_world(hittable_list **d_world)
- {
+void create_world(hittable_list **d_world,moving_sphere **move_list)
+{
 	if (threadIdx.x == 0 && blockIdx.x == 0)
 	{
 
@@ -109,19 +143,25 @@ void create_world(hittable_list **d_world)
 		auto green = new lambertian(new solid_color(color(.12, .45, .15)));
 		auto light = new diffuse_light(new solid_color(color(15, 15, 15)));
 		auto white_metal = new metal(color(1,0.7,1),0);
+		auto sphere_path = new circular_path(point3(0,2,0),point3(3,2,0),point3(0,6,0),10,5,60,10);
+		// auto sphere_path = new straight_path(point3(0,2,0),point3(3,2,0),0,2,5,1.0);
 
-
-		(*d_world)->add(new yz_rect(0, 555, 0, 555, 555, white_metal));
-		(*d_world)->add(new yz_rect(0, 555, 0, 555, 0, red));
-		(*d_world)->add(new xz_rect(213, 343, 227, 332, 554, light));
-		(*d_world)->add(new xz_rect(0, 555, 0, 555, 0, white));
-		(*d_world)->add(new xz_rect(0, 555, 0, 555, 555, white));
-		(*d_world)->add(new xy_rect(0, 555, 0, 555, 555, white));	
-		(*d_world)->add(new box(point3(130, 0, 65), point3(295, 165, 230), white));
-		(*d_world)->add(new box(point3(265, 0, 295), point3(430, 330, 460), white));
+		auto sphere = new moving_sphere(sphere_path, 2, light);
+		(*d_world)->add(sphere);
+		move_list[0] = sphere;
+		
     }
 }
 
+__global__
+void move_world(moving_sphere **move_list)
+{
+	if(threadIdx.x == 0 && blockIdx.x==0)
+	{
+		move_list[0]->move();
+	}
+	
+}
 
 __global__
 void free_world(hittable_list **d_world)
@@ -141,8 +181,11 @@ int main()
 	const double aspect_ratio = 16.0/9.0;
 	const int image_height = 720;
 	const int image_width = static_cast<int>(image_height*aspect_ratio);
-	const int sample_size = 5000;
+	const int sample_size = 200;
 	const int max_depth = 50;
+	const int fps = 60;
+	const double running_time = 10;
+	const int frames = fps*running_time;
 
 
 
@@ -150,8 +193,8 @@ int main()
 	vec3 *final_out = unified_ptr<vec3>(image_height*image_width*sizeof(vec3));
 
 	// Camera
-	point3 lookfrom(278, 278, -800);
-    point3 lookat(278, 278, 0);
+	point3 lookfrom(0,3,50);
+    point3 lookat(0, 2, 0);
     vec3 vup(0,1,0);
 
 	
@@ -172,8 +215,11 @@ int main()
 	hittable_list **d_world;
 	cudaMalloc(&d_world, sizeof(hittable_list *));
 
+	moving_sphere **move_list;
+	cudaMalloc(&move_list,sizeof(moving_sphere *));
 
-    create_world<<<1,1>>>(d_world);
+
+    create_world<<<1,1>>>(d_world,move_list);
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
 	clock_t start,stop;
@@ -181,26 +227,48 @@ int main()
 
 	
 	//Call Kernel
-	process<<<num_blocks,block_size>>>(final_out,image_width,image_height,sample_size,max_depth,d_world,d_cam);
-	checkCudaErrors(cudaGetLastError());
-	checkCudaErrors(cudaDeviceSynchronize());
+	
+	char str[5];
+	char* file_start = "outputppm/image";
+	char* extension = ".ppm";
+	char file_name[30];
+
+
+
+	for(int j =0;j<frames;j++)
+	{
+		process<<<num_blocks,block_size>>>(final_out,image_width,image_height,sample_size,max_depth,d_world,d_cam);
+		checkCudaErrors(cudaGetLastError());
+		checkCudaErrors(cudaDeviceSynchronize());
+		//File Handling and Importing ppm
+		sprintf(str, "%d", j);
+		strcpy(file_name,file_start);
+		strcat(file_name,str);
+		strcat(file_name,extension);
+
+		FILE* file1 = fopen(file_name,"w");
+	
+		fprintf(file1,"P3 %d %d\n255\n",image_width,image_height);
+	
+		for (int i = 0; i<image_width*image_height; i++)
+		{
+			fprintf(file1,"%d %d %d\n",static_cast<int>(final_out[i][0]),static_cast<int>(final_out[i][1]),static_cast<int>(final_out[i][2]));
+		}
+	
+		fclose(file1);
+		move_world<<<1,1>>>(move_list);
+		checkCudaErrors(cudaGetLastError());
+		checkCudaErrors(cudaDeviceSynchronize());
+
+		std::cerr<<j<<"/"<<frames<<"\n"<<std::flush;
+	
+	}
+
+
+
 
     stop = clock();
 	double timer_seconds = ((static_cast<double>(stop - start))) / CLOCKS_PER_SEC;
-	
-
-	//File Handling and Importing ppm
-	FILE* file1 = fopen("image1.ppm","w");
-
-	fprintf(file1,"P3 %d %d\n255\n",image_width,image_height);
-
-	for (int i = 0; i<image_width*image_height; i++)
-	{
-		fprintf(file1,"%d %d %d\n",static_cast<int>(final_out[i][0]),static_cast<int>(final_out[i][1]),static_cast<int>(final_out[i][2]));
-	}
-
-	fclose(file1);
-
 
 	std::cerr<<"Done in "<<timer_seconds<<"s\n";
 	//Free Memory
@@ -212,8 +280,5 @@ int main()
 	checkCudaErrors(cudaDeviceReset());
 	checkCudaErrors(cudaDeviceSynchronize());
 
-
-	//Change to JPEG
-	PPM_to_JPEG();
 
 }

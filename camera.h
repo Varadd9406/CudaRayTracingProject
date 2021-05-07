@@ -20,6 +20,8 @@ class camera
 		horizontal = viewport_width * u;
 		vertical = viewport_height * v;
 		lower_left_corner = origin - horizontal/2 - vertical/2 - w;
+		// total_time = p_time1;
+		// frame_time = double(1)/double(p_fps);
 	}
 	
 	__device__
@@ -33,4 +35,7 @@ class camera
 	point3 lower_left_corner;
 	vec3 horizontal;
 	vec3 vertical;
+	// double total_time;
+	// double frame_time;
+	// double curr_time = 0.0;
 };
