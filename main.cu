@@ -18,9 +18,17 @@
 #include "aarect.h"
 #include "box.h"
 #include "path.h"
+#include "stationary_path.h"
 #include "straight_path.h"
 #include "circular_path.h"
 #include "moving_sphere.h"
+
+
+// #define STB_IMAGE_IMPLEMENTATION
+// #include "stb_image.h"
+
+// #include "CImg.h"
+// using namespace cimg_library;
 
 // limited version of checkCudaErrors from helper_cuda.h in CUDA examples
 #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
@@ -128,7 +136,7 @@ void process(vec3 *final_out,int image_width,int image_height,int sample_size,in
 
 
 __global__
-void create_world(hittable_list **d_world,moving_sphere **move_list)
+void create_world(hittable_list **d_world,moving_sphere **move_list,int frames,double running_time)
 {
 	if (threadIdx.x == 0 && blockIdx.x == 0)
 	{
@@ -136,20 +144,58 @@ void create_world(hittable_list **d_world,moving_sphere **move_list)
 		curandState thread_rand_state ;
 		curand_init(2020,0,0,&thread_rand_state);
 		*d_world = new hittable_list(500);
+	
+
 		
 
 		auto red   = new lambertian(new solid_color(color(.65, .05, .05)));
+		auto blue   = new lambertian(new solid_color(color(3.0/255.0, 129.0/255.0, 231.0/255.0)));
 		auto white = new lambertian(new solid_color(color(.73, .73, .73)));
 		auto green = new lambertian(new solid_color(color(.12, .45, .15)));
-		auto light = new diffuse_light(new solid_color(color(15, 15, 15)));
+		auto sunlight = new diffuse_light(new solid_color(100*color(15.0/16.0, 13.0/16.0, 2.0/16.0)));
+		auto moonlight = new diffuse_light(new solid_color(color(0.5, 0.5, 0.5)));
 		auto white_metal = new metal(color(1,0.7,1),0);
-		auto sphere_path = new circular_path(point3(0,2,0),point3(3,2,0),point3(0,6,0),10,5,60,10);
-		// auto sphere_path = new straight_path(point3(0,2,0),point3(3,2,0),0,2,5,1.0);
+		// auto test_sphere = new sphere(point3(0,10,0),2,white_metal);
 
-		auto sphere = new moving_sphere(sphere_path, 2, light);
-		(*d_world)->add(sphere);
-		move_list[0] = sphere;
+		auto mercury_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),20,0.5,frames,random_double(&thread_rand_state,0,2*pi));
+		auto venus_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),30,0.2,frames,random_double(&thread_rand_state,0,2*pi));
+		auto earth_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),50,0.05,frames,random_double(&thread_rand_state,0,2*pi));
+		auto mars_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),70,0.03,frames,random_double(&thread_rand_state,0,2*pi));
+		auto jupiter_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),100,0.01,frames,random_double(&thread_rand_state,0,2*pi));
+		auto saturn_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),120,0.01,frames,random_double(&thread_rand_state,0,2*pi));
+		auto moon_orbit =  new circular_path(earth_orbit,point3(1,0,0),point3(0,0,1),8,1,frames,random_double(&thread_rand_state,0,2*pi));
 		
+
+		auto sun = new sphere(point3(0,0,0),12,sunlight);
+		auto mercury = new moving_sphere(mercury_orbit, 2, red);
+		auto venus = new moving_sphere(venus_orbit, 3, red);
+		auto earth = new moving_sphere(earth_orbit, 4, blue);
+		auto mars = new moving_sphere(mars_orbit, 3, red);
+		auto jupiter = new moving_sphere(jupiter_orbit, 9, red);
+		auto saturn = new moving_sphere(saturn_orbit, 7, red);
+		auto moon = new moving_sphere(moon_orbit, 1, moonlight);
+
+		// auto earth = new moving_sphere(earth_orbit, 4, blue);
+		
+		(*d_world)->add(mercury);
+		(*d_world)->add(venus);
+		(*d_world)->add(earth);
+		(*d_world)->add(mars);
+		(*d_world)->add(jupiter);
+		(*d_world)->add(saturn);
+		(*d_world)->add(moon);
+
+
+		// (*d_world)->add(test_sphere);
+
+		(*d_world)->add(sun);
+		move_list[0] = mercury;
+		move_list[1] = venus;
+		move_list[2] = earth;
+		move_list[3] = mars;
+		move_list[4] = jupiter;
+		move_list[5] = saturn;
+		move_list[6] = moon;
     }
 }
 
@@ -159,6 +205,12 @@ void move_world(moving_sphere **move_list)
 	if(threadIdx.x == 0 && blockIdx.x==0)
 	{
 		move_list[0]->move();
+		move_list[1]->move();
+		move_list[2]->move();
+		move_list[3]->move();
+		move_list[4]->move();
+		move_list[5]->move();
+		move_list[6]->move();
 	}
 	
 }
@@ -181,10 +233,10 @@ int main()
 	const double aspect_ratio = 16.0/9.0;
 	const int image_height = 720;
 	const int image_width = static_cast<int>(image_height*aspect_ratio);
-	const int sample_size = 200;
+	const int sample_size = 100;
 	const int max_depth = 50;
-	const int fps = 60;
-	const double running_time = 10;
+	const int fps = 30;
+	const double running_time = 2;
 	const int frames = fps*running_time;
 
 
@@ -193,9 +245,9 @@ int main()
 	vec3 *final_out = unified_ptr<vec3>(image_height*image_width*sizeof(vec3));
 
 	// Camera
-	point3 lookfrom(0,3,50);
-    point3 lookat(0, 2, 0);
-    vec3 vup(0,1,0);
+	point3 lookfrom(50,400,200);
+    point3 lookat(0, 0, 0);
+    vec3 vup(0,0,-1);
 
 	
 	camera *h_cam = new camera(lookfrom, lookat, vup, 40, aspect_ratio);
@@ -216,10 +268,20 @@ int main()
 	cudaMalloc(&d_world, sizeof(hittable_list *));
 
 	moving_sphere **move_list;
-	cudaMalloc(&move_list,sizeof(moving_sphere *));
+	cudaMalloc(&move_list,10*sizeof(moving_sphere *));
 
 
-    create_world<<<1,1>>>(d_world,move_list);
+	// Image Data
+	// CImg<unsigned char> im("earthmap.jpg");
+
+
+	// if (!data) 
+	// {
+	// 	std::cerr << "ERROR: Could not load texture image file '" << filename << "'.\n";
+	// 	width = height = 0;
+	// }
+
+    create_world<<<1,1>>>(d_world,move_list,fps,running_time);
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
 	clock_t start,stop;
@@ -260,7 +322,7 @@ int main()
 		checkCudaErrors(cudaGetLastError());
 		checkCudaErrors(cudaDeviceSynchronize());
 
-		std::cerr<<j<<"/"<<frames<<"\n"<<std::flush;
+		std::cerr<<(double(j)/double(frames))*100<<"%"<<"\n"<<std::flush;
 	
 	}
 
