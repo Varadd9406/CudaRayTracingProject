@@ -22,13 +22,14 @@
 #include "straight_path.h"
 #include "circular_path.h"
 #include "moving_sphere.h"
+#include "raw_img.h"
 
 
 // #define STB_IMAGE_IMPLEMENTATION
 // #include "stb_image.h"
 
-// #include "CImg.h"
-// using namespace cimg_library;
+#include "CImg.h"
+using namespace cimg_library;
 
 // limited version of checkCudaErrors from helper_cuda.h in CUDA examples
 #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
@@ -105,8 +106,102 @@ void process(vec3 *final_out,int image_width,int image_height,int sample_size,in
 	}
 }
 
+
+__global__
+void create_world(hittable_list **d_world,moving_sphere **move_list,raw_img** image_list,int frames,double running_time)
+{
+	if (threadIdx.x == 0 && blockIdx.x == 0)
+	{
+
+		curandState thread_rand_state ;
+		curand_init(2020,0,0,&thread_rand_state);
+		*d_world = new hittable_list(500);
+	
+
+		
+
+		auto red   = new lambertian(new solid_color(color(.65, .05, .05)));
+		auto blue   = new lambertian(new solid_color(color(3.0/255.0, 129.0/255.0, 231.0/255.0)));
+		auto white = new lambertian(new solid_color(color(.73, .73, .73)));
+		auto green = new lambertian(new solid_color(color(.12, .45, .15)));
+		auto sunlight = new diffuse_light(new solid_color(25*color(1,1,1)));
+		auto moonlight = new lambertian(new solid_color(color(0.5, 0.5, 0.5)));
+		auto white_metal = new metal(color(1,0.7,1),0);
+
+
+
+
+
+		auto mercury_img = new lambertian(new image_texture(image_list[0]->data,image_list[0]->width,image_list[0]->height));
+		auto venus_img = new lambertian(new image_texture(image_list[1]->data,image_list[1]->width,image_list[1]->height));
+		auto earth_img = new lambertian(new image_texture(image_list[2]->data,image_list[2]->width,image_list[2]->height));
+		auto mars_img = new lambertian(new image_texture(image_list[3]->data,image_list[3]->width,image_list[3]->height));
+		auto jupiter_img = new lambertian(new image_texture(image_list[4]->data,image_list[4]->width,image_list[4]->height));
+		auto saturn_img = new lambertian(new image_texture(image_list[5]->data,image_list[5]->width,image_list[5]->height));
+
+
+		// auto test_sphere = new sphere(point3(0,10,0),2,white_metal);
+
+		auto mercury_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),20,0.5,frames,random_double(&thread_rand_state,0,2*pi));
+		auto venus_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),30,0.2,frames,random_double(&thread_rand_state,0,2*pi));
+		auto earth_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),50,0.05,frames,random_double(&thread_rand_state,0,2*pi));
+		auto mars_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),70,0.03,frames,random_double(&thread_rand_state,0,2*pi));
+		auto jupiter_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),100,0.01,frames,random_double(&thread_rand_state,0,2*pi));
+		auto saturn_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),120,0.01,frames,1.7*pi);
+		auto earth_moon_orbit =  new circular_path(earth_orbit,point3(1,2,0),point3(0,0,1),8,1,frames,random_double(&thread_rand_state,0,2*pi));
+		
+
+		auto sun = new sphere(point3(0,0,0),12,sunlight);
+		auto mercury = new moving_sphere(mercury_orbit, 2, mercury_img);
+		auto venus = new moving_sphere(venus_orbit, 3, venus_img);
+		auto earth = new moving_sphere(earth_orbit, 4, earth_img);
+		auto mars = new moving_sphere(mars_orbit, 3, mars_img);
+		auto jupiter = new moving_sphere(jupiter_orbit, 9, jupiter_img);
+		auto saturn = new moving_sphere(saturn_orbit, 7, saturn_img);
+		auto earth_moon = new moving_sphere(earth_moon_orbit, 1, moonlight);
+
+		// auto earth = new moving_sphere(earth_orbit, 4, blue);
+		
+		(*d_world)->add(mercury);
+		(*d_world)->add(venus);
+		(*d_world)->add(earth);
+		(*d_world)->add(mars);
+		(*d_world)->add(jupiter);
+		(*d_world)->add(saturn);
+		(*d_world)->add(earth_moon);
+
+
+		// (*d_world)->add(test_sphere);
+
+		(*d_world)->add(sun);
+		move_list[0] = mercury;
+		move_list[1] = venus;
+		move_list[2] = earth;
+		move_list[3] = mars;
+		move_list[4] = jupiter;
+		move_list[5] = saturn;
+		move_list[6] = earth_moon;
+    }
+}
+
+__global__
+void move_world(moving_sphere **move_list)
+{
+	if(threadIdx.x == 0 && blockIdx.x==0)
+	{
+		move_list[0]->move();
+		move_list[1]->move();
+		move_list[2]->move();
+		move_list[3]->move();
+		move_list[4]->move();
+		move_list[5]->move();
+		move_list[6]->move();
+	}
+	
+}
+
 // __global__
-// void create_world(hittable_list **d_world)
+// void create_world(hittable_list **d_world,moving_sphere **move_list,raw_img** image_list,int frames,double running_time)
 //  {
 // 	if (threadIdx.x == 0 && blockIdx.x == 0)
 // 	{
@@ -135,85 +230,15 @@ void process(vec3 *final_out,int image_width,int image_height,int sample_size,in
 // }
 
 
-__global__
-void create_world(hittable_list **d_world,moving_sphere **move_list,int frames,double running_time)
-{
-	if (threadIdx.x == 0 && blockIdx.x == 0)
-	{
+// __global__
+// void move_world(moving_sphere **move_list)
+// {
+// 	if(threadIdx.x == 0 && blockIdx.x==0)
+// 	{
 
-		curandState thread_rand_state ;
-		curand_init(2020,0,0,&thread_rand_state);
-		*d_world = new hittable_list(500);
+// 	}
 	
-
-		
-
-		auto red   = new lambertian(new solid_color(color(.65, .05, .05)));
-		auto blue   = new lambertian(new solid_color(color(3.0/255.0, 129.0/255.0, 231.0/255.0)));
-		auto white = new lambertian(new solid_color(color(.73, .73, .73)));
-		auto green = new lambertian(new solid_color(color(.12, .45, .15)));
-		auto sunlight = new diffuse_light(new solid_color(100*color(15.0/16.0, 13.0/16.0, 2.0/16.0)));
-		auto moonlight = new diffuse_light(new solid_color(color(0.5, 0.5, 0.5)));
-		auto white_metal = new metal(color(1,0.7,1),0);
-		// auto test_sphere = new sphere(point3(0,10,0),2,white_metal);
-
-		auto mercury_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),20,0.5,frames,random_double(&thread_rand_state,0,2*pi));
-		auto venus_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),30,0.2,frames,random_double(&thread_rand_state,0,2*pi));
-		auto earth_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),50,0.05,frames,random_double(&thread_rand_state,0,2*pi));
-		auto mars_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),70,0.03,frames,random_double(&thread_rand_state,0,2*pi));
-		auto jupiter_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),100,0.01,frames,random_double(&thread_rand_state,0,2*pi));
-		auto saturn_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),120,0.01,frames,random_double(&thread_rand_state,0,2*pi));
-		auto moon_orbit =  new circular_path(earth_orbit,point3(1,0,0),point3(0,0,1),8,1,frames,random_double(&thread_rand_state,0,2*pi));
-		
-
-		auto sun = new sphere(point3(0,0,0),12,sunlight);
-		auto mercury = new moving_sphere(mercury_orbit, 2, red);
-		auto venus = new moving_sphere(venus_orbit, 3, red);
-		auto earth = new moving_sphere(earth_orbit, 4, blue);
-		auto mars = new moving_sphere(mars_orbit, 3, red);
-		auto jupiter = new moving_sphere(jupiter_orbit, 9, red);
-		auto saturn = new moving_sphere(saturn_orbit, 7, red);
-		auto moon = new moving_sphere(moon_orbit, 1, moonlight);
-
-		// auto earth = new moving_sphere(earth_orbit, 4, blue);
-		
-		(*d_world)->add(mercury);
-		(*d_world)->add(venus);
-		(*d_world)->add(earth);
-		(*d_world)->add(mars);
-		(*d_world)->add(jupiter);
-		(*d_world)->add(saturn);
-		(*d_world)->add(moon);
-
-
-		// (*d_world)->add(test_sphere);
-
-		(*d_world)->add(sun);
-		move_list[0] = mercury;
-		move_list[1] = venus;
-		move_list[2] = earth;
-		move_list[3] = mars;
-		move_list[4] = jupiter;
-		move_list[5] = saturn;
-		move_list[6] = moon;
-    }
-}
-
-__global__
-void move_world(moving_sphere **move_list)
-{
-	if(threadIdx.x == 0 && blockIdx.x==0)
-	{
-		move_list[0]->move();
-		move_list[1]->move();
-		move_list[2]->move();
-		move_list[3]->move();
-		move_list[4]->move();
-		move_list[5]->move();
-		move_list[6]->move();
-	}
-	
-}
+// }
 
 __global__
 void free_world(hittable_list **d_world)
@@ -233,11 +258,12 @@ int main()
 	const double aspect_ratio = 16.0/9.0;
 	const int image_height = 720;
 	const int image_width = static_cast<int>(image_height*aspect_ratio);
-	const int sample_size = 100;
+	const int sample_size = 5000;
 	const int max_depth = 50;
-	const int fps = 30;
-	const double running_time = 2;
+	const int fps = 60;
+	const double running_time = 5;
 	const int frames = fps*running_time;
+
 
 
 
@@ -245,10 +271,17 @@ int main()
 	vec3 *final_out = unified_ptr<vec3>(image_height*image_width*sizeof(vec3));
 
 	// Camera
-	point3 lookfrom(50,400,200);
+	point3 lookfrom(200,200,100);
     point3 lookat(0, 0, 0);
-    vec3 vup(0,0,-1);
+    vec3 vup(0,1,0);
+	// point3 lookfrom(278, 278, -800);
+    // point3 lookat(278, 278, 0);
+    // vec3 vup(0,1,0);
 
+	
+	// camera *h_cam = new camera(lookfrom, lookat, vup, 40, aspect_ratio);
+	// camera *d_cam = cuda_ptr<camera>(h_cam,sizeof(camera));
+	// delete h_cam;
 	
 	camera *h_cam = new camera(lookfrom, lookat, vup, 40, aspect_ratio);
 	camera *d_cam = cuda_ptr<camera>(h_cam,sizeof(camera));
@@ -270,9 +303,38 @@ int main()
 	moving_sphere **move_list;
 	cudaMalloc(&move_list,10*sizeof(moving_sphere *));
 
+	raw_img** image_list;
+	cudaMallocManaged(&image_list,10*sizeof(raw_img *));
+
 
 	// Image Data
-	// CImg<unsigned char> im("earthmap.jpg");
+	
+
+
+
+	CImg<unsigned char> mercury_img("data/mercurymap.jpg");
+	image_list[0] = cuda_ptr<raw_img>(new raw_img(cuda_ptr<unsigned char>(mercury_img.data(),static_cast<size_t>(sizeof(unsigned char)*mercury_img.width()*mercury_img.height()*3)),mercury_img.width(),mercury_img.height()),sizeof(raw_img)) ;
+
+	CImg<unsigned char> venus_img("data/venusmap.jpg");
+	image_list[1] = cuda_ptr<raw_img>(new raw_img(cuda_ptr<unsigned char>(venus_img.data(),static_cast<size_t>(sizeof(unsigned char)*venus_img.width()*venus_img.height()*3)),venus_img.width(),venus_img.height()),sizeof(raw_img)) ;
+
+	CImg<unsigned char> earth_img("data/earthmap.jpg");
+	image_list[2] = cuda_ptr<raw_img>(new raw_img(cuda_ptr<unsigned char>(earth_img.data(),static_cast<size_t>(sizeof(unsigned char)*earth_img.width()*earth_img.height()*3)),earth_img.width(),earth_img.height()),sizeof(raw_img)) ;
+
+	CImg<unsigned char> mars_img("data/marsmap.jpg");
+	image_list[3] = cuda_ptr<raw_img>(new raw_img(cuda_ptr<unsigned char>(mars_img.data(),static_cast<size_t>(sizeof(unsigned char)*mars_img.width()*mars_img.height()*3)),mars_img.width(),mars_img.height()),sizeof(raw_img)) ;
+
+	CImg<unsigned char> jupiter_img("data/jupitermap.jpg");
+	image_list[4] = cuda_ptr<raw_img>(new raw_img(cuda_ptr<unsigned char>(jupiter_img.data(),static_cast<size_t>(sizeof(unsigned char)*jupiter_img.width()*jupiter_img.height()*3)),jupiter_img.width(),jupiter_img.height()),sizeof(raw_img)) ;
+
+	CImg<unsigned char> saturn_img("data/saturnmap.jpg");
+	image_list[5] = cuda_ptr<raw_img>(new raw_img(cuda_ptr<unsigned char>(saturn_img.data(),static_cast<size_t>(sizeof(unsigned char)*saturn_img.width()*saturn_img.height()*3)),saturn_img.width(),saturn_img.height()),sizeof(raw_img)) ;
+
+
+
+
+
+
 
 
 	// if (!data) 
@@ -281,7 +343,7 @@ int main()
 	// 	width = height = 0;
 	// }
 
-    create_world<<<1,1>>>(d_world,move_list,fps,running_time);
+    create_world<<<1,1>>>(d_world,move_list,image_list,fps,running_time);
 	checkCudaErrors(cudaGetLastError());
 	checkCudaErrors(cudaDeviceSynchronize());
 	clock_t start,stop;
@@ -322,7 +384,7 @@ int main()
 		checkCudaErrors(cudaGetLastError());
 		checkCudaErrors(cudaDeviceSynchronize());
 
-		std::cerr<<(double(j)/double(frames))*100<<"%"<<"\n"<<std::flush;
+		std::cerr<<(double(j+1)/double(frames))*100<<"%"<<"\n"<<std::flush;
 	
 	}
 
