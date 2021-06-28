@@ -15,7 +15,8 @@ The engine can currently be used to simulate geometric objects with material typ
 
 ![Alt Text](https://github.com/Varadd9406/CudaRayTracingProject/blob/master/ReadmeStuff/raytrace.gif)
 
-
+### Requirements
+Ensure CUDA toolkit 11.1 is used for compilation.
 ### TODO
 1. Implement monte carlo optimization.
 2. Use trianglar meshes instead of equations.
