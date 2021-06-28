@@ -109,141 +109,141 @@ void process(vec3 *final_out,int image_width,int image_height,int sample_size,in
 }
 
 
-__global__
-void create_world(hittable_list **d_world,moving_sphere **move_list,raw_img** image_list,int frames,double running_time)
-{
-	if (threadIdx.x == 0 && blockIdx.x == 0)
-	{
-
-		curandState thread_rand_state ;
-		curand_init(2020,0,0,&thread_rand_state);
-		*d_world = new hittable_list(500);
-	
-
-		
-
-		auto red   = new lambertian(new solid_color(color(.65, .05, .05)));
-		auto blue   = new lambertian(new solid_color(color(3.0/255.0, 129.0/255.0, 231.0/255.0)));
-		auto white = new lambertian(new solid_color(color(.73, .73, .73)));
-		auto green = new lambertian(new solid_color(color(.12, .45, .15)));
-		auto sunlight = new diffuse_light(new solid_color(25*color(1,1,1)));
-		auto moonlight = new lambertian(new solid_color(color(0.5, 0.5, 0.5)));
-		auto white_metal = new metal(color(1,1,1),0.2);
-
-
-
-
-
-		auto mercury_img = new lambertian(new image_texture(image_list[0]->data,image_list[0]->width,image_list[0]->height));
-		auto venus_img = new lambertian(new image_texture(image_list[1]->data,image_list[1]->width,image_list[1]->height));
-		auto earth_img = new lambertian(new image_texture(image_list[2]->data,image_list[2]->width,image_list[2]->height));
-		auto mars_img = new lambertian(new image_texture(image_list[3]->data,image_list[3]->width,image_list[3]->height));
-		auto jupiter_img = new lambertian(new image_texture(image_list[4]->data,image_list[4]->width,image_list[4]->height));
-		auto saturn_img = new lambertian(new image_texture(image_list[5]->data,image_list[5]->width,image_list[5]->height));
-
-
-		auto test_sphere = new sphere(point3(0,-50,0),2,sunlight);
-
-		auto mercury_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),20,0.5,frames,random_double(&thread_rand_state,0,2*pi));
-		auto venus_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),30,0.2,frames,random_double(&thread_rand_state,0,2*pi));
-		auto earth_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),50,0.05,frames,random_double(&thread_rand_state,0,2*pi));
-		auto mars_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),70,0.03,frames,random_double(&thread_rand_state,0,2*pi));
-		auto jupiter_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),100,0.01,frames,random_double(&thread_rand_state,0,2*pi));
-		auto saturn_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),120,0.01,frames,1.7*pi);
-		auto earth_moon_orbit =  new circular_path(earth_orbit,point3(1,2,0),point3(0,0,1),8,1,frames,random_double(&thread_rand_state,0,2*pi));
-		
-
-		auto sun = new sphere(point3(0,0,0),12,sunlight);
-		auto mercury = new moving_sphere(mercury_orbit, 2, mercury_img);
-		auto venus = new moving_sphere(venus_orbit, 3, venus_img);
-		auto earth = new moving_sphere(earth_orbit, 4, earth_img);
-		auto mars = new moving_sphere(mars_orbit, 3, mars_img);
-		auto jupiter = new moving_sphere(jupiter_orbit, 9, jupiter_img);
-		auto saturn = new moving_sphere(saturn_orbit, 7, saturn_img);
-		auto earth_moon = new moving_sphere(earth_moon_orbit, 1, moonlight);
-
-
-		// auto mirror = new xz_rect(-400, 400, -400,400, -50, white_metal);
-		// auto earth = new moving_sphere(earth_orbit, 4, blue);
- 		// (*d_world)->add(mirror);
-
-		(*d_world)->add(mercury);
-		(*d_world)->add(venus);
-		(*d_world)->add(earth);
-		(*d_world)->add(mars);
-		(*d_world)->add(jupiter);
-		(*d_world)->add(saturn);
-		(*d_world)->add(earth_moon);
-
-
-		(*d_world)->add(test_sphere);
-
-		(*d_world)->add(sun);
-		move_list[0] = mercury;
-		move_list[1] = venus;
-		move_list[2] = earth;
-		move_list[3] = mars;
-		move_list[4] = jupiter;
-		move_list[5] = saturn;
-		move_list[6] = earth_moon;
-    }
-}
-
-__global__
-void move_world(moving_sphere **move_list)
-{
-	if(threadIdx.x == 0 && blockIdx.x==0)
-	{
-		move_list[0]->move();
-		move_list[1]->move();
-		move_list[2]->move();
-		move_list[3]->move();
-		move_list[4]->move();
-		move_list[5]->move();
-		move_list[6]->move();
-	}
-	
-}
-
 // __global__
 // void create_world(hittable_list **d_world,moving_sphere **move_list,raw_img** image_list,int frames,double running_time)
-//  {
+// {
 // 	if (threadIdx.x == 0 && blockIdx.x == 0)
 // 	{
 
 // 		curandState thread_rand_state ;
 // 		curand_init(2020,0,0,&thread_rand_state);
 // 		*d_world = new hittable_list(500);
+	
+
 		
 
 // 		auto red   = new lambertian(new solid_color(color(.65, .05, .05)));
+// 		auto blue   = new lambertian(new solid_color(color(3.0/255.0, 129.0/255.0, 231.0/255.0)));
 // 		auto white = new lambertian(new solid_color(color(.73, .73, .73)));
 // 		auto green = new lambertian(new solid_color(color(.12, .45, .15)));
-// 		auto light = new diffuse_light(new solid_color(color(15, 15, 15)));
-// 		auto white_metal = new metal(color(1,0.7,1),0);
+// 		auto sunlight = new diffuse_light(new solid_color(25*color(1,1,1)));
+// 		auto moonlight = new lambertian(new solid_color(color(0.5, 0.5, 0.5)));
+// 		auto white_metal = new metal(color(1,1,1),0.2);
 
 
-// 		(*d_world)->add(new yz_rect(0, 555, 0, 555, 555, green));
-// 		(*d_world)->add(new yz_rect(0, 555, 0, 555, 0, red));
-// 		(*d_world)->add(new xz_rect(213, 343, 227, 332, 554, light));
-// 		(*d_world)->add(new xz_rect(0, 555, 0, 555, 0, white));
-// 		(*d_world)->add(new xz_rect(0, 555, 0, 555, 555, white));
-// 		(*d_world)->add(new xy_rect(0, 555, 0, 555, 555, white));	
-// 		(*d_world)->add(new box(point3(130, 0, 65), point3(295, 165, 230), white));
-// 		(*d_world)->add(new box(point3(265, 0, 295), point3(430, 330, 460), white));
+
+
+
+// 		auto mercury_img = new lambertian(new image_texture(image_list[0]->data,image_list[0]->width,image_list[0]->height));
+// 		auto venus_img = new lambertian(new image_texture(image_list[1]->data,image_list[1]->width,image_list[1]->height));
+// 		auto earth_img = new lambertian(new image_texture(image_list[2]->data,image_list[2]->width,image_list[2]->height));
+// 		auto mars_img = new lambertian(new image_texture(image_list[3]->data,image_list[3]->width,image_list[3]->height));
+// 		auto jupiter_img = new lambertian(new image_texture(image_list[4]->data,image_list[4]->width,image_list[4]->height));
+// 		auto saturn_img = new lambertian(new image_texture(image_list[5]->data,image_list[5]->width,image_list[5]->height));
+
+
+// 		auto test_sphere = new sphere(point3(0,-50,0),2,sunlight);
+
+// 		auto mercury_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),20,0.5,frames,random_double(&thread_rand_state,0,2*pi));
+// 		auto venus_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),30,0.2,frames,random_double(&thread_rand_state,0,2*pi));
+// 		auto earth_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),50,0.05,frames,random_double(&thread_rand_state,0,2*pi));
+// 		auto mars_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),70,0.03,frames,random_double(&thread_rand_state,0,2*pi));
+// 		auto jupiter_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),100,0.01,frames,random_double(&thread_rand_state,0,2*pi));
+// 		auto saturn_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),120,0.01,frames,1.7*pi);
+// 		auto earth_moon_orbit =  new circular_path(earth_orbit,point3(1,2,0),point3(0,0,1),8,1,frames,random_double(&thread_rand_state,0,2*pi));
+		
+
+// 		auto sun = new sphere(point3(0,0,0),12,sunlight);
+// 		auto mercury = new moving_sphere(mercury_orbit, 2, mercury_img);
+// 		auto venus = new moving_sphere(venus_orbit, 3, venus_img);
+// 		auto earth = new moving_sphere(earth_orbit, 4, earth_img);
+// 		auto mars = new moving_sphere(mars_orbit, 3, mars_img);
+// 		auto jupiter = new moving_sphere(jupiter_orbit, 9, jupiter_img);
+// 		auto saturn = new moving_sphere(saturn_orbit, 7, saturn_img);
+// 		auto earth_moon = new moving_sphere(earth_moon_orbit, 1, moonlight);
+
+
+// 		// auto mirror = new xz_rect(-400, 400, -400,400, -50, white_metal);
+// 		// auto earth = new moving_sphere(earth_orbit, 4, blue);
+//  		// (*d_world)->add(mirror);
+
+// 		(*d_world)->add(mercury);
+// 		(*d_world)->add(venus);
+// 		(*d_world)->add(earth);
+// 		(*d_world)->add(mars);
+// 		(*d_world)->add(jupiter);
+// 		(*d_world)->add(saturn);
+// 		(*d_world)->add(earth_moon);
+
+
+// 		(*d_world)->add(test_sphere);
+
+// 		(*d_world)->add(sun);
+// 		move_list[0] = mercury;
+// 		move_list[1] = venus;
+// 		move_list[2] = earth;
+// 		move_list[3] = mars;
+// 		move_list[4] = jupiter;
+// 		move_list[5] = saturn;
+// 		move_list[6] = earth_moon;
 //     }
 // }
-
 
 // __global__
 // void move_world(moving_sphere **move_list)
 // {
 // 	if(threadIdx.x == 0 && blockIdx.x==0)
 // 	{
-
+// 		move_list[0]->move();
+// 		move_list[1]->move();
+// 		move_list[2]->move();
+// 		move_list[3]->move();
+// 		move_list[4]->move();
+// 		move_list[5]->move();
+// 		move_list[6]->move();
 // 	}
 	
 // }
+
+__global__
+void create_world(hittable_list **d_world,moving_sphere **move_list,raw_img** image_list,int frames,double running_time)
+ {
+	if (threadIdx.x == 0 && blockIdx.x == 0)
+	{
+
+		curandState thread_rand_state ;
+		curand_init(2020,0,0,&thread_rand_state);
+		*d_world = new hittable_list(500);
+		
+
+		auto red   = new lambertian(new solid_color(color(.65, .05, .05)));
+		auto white = new lambertian(new solid_color(color(.73, .73, .73)));
+		auto green = new lambertian(new solid_color(color(.12, .45, .15)));
+		auto light = new diffuse_light(new solid_color(color(15, 15, 15)));
+		auto white_metal = new metal(color(1,0.7,1),0);
+
+
+		(*d_world)->add(new yz_rect(0, 555, 0, 555, 555, white_metal));
+		(*d_world)->add(new yz_rect(0, 555, 0, 555, 0, red));
+		(*d_world)->add(new xz_rect(213, 343, 227, 332, 554, light));
+		(*d_world)->add(new xz_rect(0, 555, 0, 555, 0, white));
+		(*d_world)->add(new xz_rect(0, 555, 0, 555, 555, white));
+		(*d_world)->add(new xy_rect(0, 555, 0, 555, 555, white));	
+		(*d_world)->add(new box(point3(130, 0, 65), point3(295, 165, 230), white));
+		(*d_world)->add(new box(point3(265, 0, 295), point3(430, 330, 460), white));
+    }
+}
+
+
+__global__
+void move_world(moving_sphere **move_list)
+{
+	if(threadIdx.x == 0 && blockIdx.x==0)
+	{
+
+	}
+	
+}
 
 __global__
 void free_world(hittable_list **d_world)
@@ -263,10 +263,10 @@ int main()
 	const double aspect_ratio = 16.0/9.0;
 	const int image_height = 720;
 	const int image_width = static_cast<int>(image_height*aspect_ratio);
-	const int sample_size = 2000;
+	const int sample_size = 5000;
 	const int max_depth = 50;
-	const int fps = 25;
-	const double running_time = 10;
+	const int fps = 1;
+	const double running_time = 1;
 	const int frames = fps*running_time;
 
 
@@ -276,14 +276,12 @@ int main()
 	vec3 *final_out = unified_ptr<vec3>(image_height*image_width*sizeof(vec3));
 
 	// Camera
-	point3 lookfrom(200,200,100);
-	// point3 lookfrom(200,0,0);
-
-    point3 lookat(0, 0, 0);
-    vec3 vup(0,1,0);
-	// point3 lookfrom(278, 278, -800);
-    // point3 lookat(278, 278, 0);
+	// point3 lookfrom(200,200,100);
+    // point3 lookat(0, 0, 0);
     // vec3 vup(0,1,0);
+	point3 lookfrom(278, 278, -800);
+    point3 lookat(278, 278, 0);
+    vec3 vup(0,1,0);
 
 	
 	// camera *h_cam = new camera(lookfrom, lookat, vup, 40, aspect_ratio);

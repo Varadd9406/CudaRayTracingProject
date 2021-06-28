@@ -10,6 +10,9 @@ void write_color(vec3* final_out, int pos,color pixel_color,int sample_size)
 	double g = pixel_color.y();
 	double b = pixel_color.z();
 	double scale =1.0/double(sample_size);
+	if (r != r) r = 0.0;
+    if (g != g) g = 0.0;
+    if (b != b) b = 0.0;
 	r=sqrt(r*scale);
 	g=sqrt(g*scale);
 	b=sqrt(b*scale);
