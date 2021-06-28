@@ -31,6 +31,7 @@ double random_double(curandState *thread_rand_state,double min, double max)
 }
 
 
+
 __device__ __host__
 double clamp(double x,double mn,double mx)
 {

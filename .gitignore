@@ -1,10 +1,4 @@
-.vscode/
+.vscode
 main
-image1.ppm
-blank
-blank.cpp
 outputppm
-outputpng
 output.mp4
-earthmap.jpg
-data

@@ -139,12 +139,13 @@ vec3 random_vec3(curandState *thread_rand_state,double min, double max)
 __device__
 vec3 random_in_unit_sphere(curandState *rand_state)
 {
-    while (true)
-	{
-        auto p = random_vec3(rand_state,-1,1);
-        if (p.length_squared() >= 1) continue;
-        return p;
-    }
+    auto r1 = random_double(rand_state);
+    auto r2 = random_double(rand_state);
+    auto x = cos(2*pi*r1)*2*sqrt(r2*(1-r2));
+    auto y = sin(2*pi*r1)*2*sqrt(r2*(1-r2));
+    auto z = 1 - 2*r2;
+    return vec3(x,y,z);
+    
 }
 
 __device__
@@ -166,4 +167,18 @@ vec3 refract(const vec3& uv, const vec3& n, double etai_over_etat)
     vec3 r_out_perp =  etai_over_etat * (uv + cos_theta*n);
     vec3 r_out_parallel = -sqrt(fabs(1.0 - r_out_perp.length_squared())) * n;
     return r_out_perp + r_out_parallel;
+}
+
+__device__
+vec3 random_cosine_direction(curandState *thread_rand_state)
+{
+    auto r1 = random_double(thread_rand_state);
+    auto r2 = random_double(thread_rand_state);
+    auto z = sqrt(1-r2);
+
+    auto phi = 2*pi*r1;
+    auto x = cos(phi)*sqrt(r2);
+    auto y = sin(phi)*sqrt(r2);
+
+    return vec3(x, y, z);
 }

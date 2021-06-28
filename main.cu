@@ -6,6 +6,7 @@
 #include "utility.h"
 #include "cudrank.h"
 #include "vec3.h"
+#include "onb.h"
 #include "ray.h"
 #include "color.h"
 #include "textureMat.h"
@@ -60,12 +61,13 @@ color ray_color(ray &r,int depth,hittable_list **world,curandState* rand_state)
 		if((*world)->hit(cur_ray,0.001,infinity,rec))
 		{
 			ray scattered;
-			vec3 attenuation;
+			vec3 albedo;
 			color emitted = rec.mat_ptr->emitted(rec.u,rec.v,rec.p);
-
-			if (rec.mat_ptr->scatter(cur_ray, rec, attenuation, scattered,rand_state))
+			double pdf = 1;
+			
+			if (rec.mat_ptr->scatter(cur_ray, rec, albedo, scattered,pdf,rand_state))
 			{
-				cur_attenuation =attenuation*cur_attenuation + emitted;
+				cur_attenuation = albedo*rec.mat_ptr->scattering_pdf(r, rec, scattered)*cur_attenuation/pdf + emitted;
 				cur_ray = scattered;
 			}
 			else
@@ -126,7 +128,7 @@ void create_world(hittable_list **d_world,moving_sphere **move_list,raw_img** im
 		auto green = new lambertian(new solid_color(color(.12, .45, .15)));
 		auto sunlight = new diffuse_light(new solid_color(25*color(1,1,1)));
 		auto moonlight = new lambertian(new solid_color(color(0.5, 0.5, 0.5)));
-		auto white_metal = new metal(color(1,0.7,1),0);
+		auto white_metal = new metal(color(1,1,1),0.2);
 
 
 
@@ -140,7 +142,7 @@ void create_world(hittable_list **d_world,moving_sphere **move_list,raw_img** im
 		auto saturn_img = new lambertian(new image_texture(image_list[5]->data,image_list[5]->width,image_list[5]->height));
 
 
-		// auto test_sphere = new sphere(point3(0,10,0),2,white_metal);
+		auto test_sphere = new sphere(point3(0,-50,0),2,sunlight);
 
 		auto mercury_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),20,0.5,frames,random_double(&thread_rand_state,0,2*pi));
 		auto venus_orbit = new circular_path(point3(0,0,0),point3(1,0,0),point3(0,0,1),30,0.2,frames,random_double(&thread_rand_state,0,2*pi));
@@ -160,8 +162,11 @@ void create_world(hittable_list **d_world,moving_sphere **move_list,raw_img** im
 		auto saturn = new moving_sphere(saturn_orbit, 7, saturn_img);
 		auto earth_moon = new moving_sphere(earth_moon_orbit, 1, moonlight);
 
+
+		// auto mirror = new xz_rect(-400, 400, -400,400, -50, white_metal);
 		// auto earth = new moving_sphere(earth_orbit, 4, blue);
-		
+ 		// (*d_world)->add(mirror);
+
 		(*d_world)->add(mercury);
 		(*d_world)->add(venus);
 		(*d_world)->add(earth);
@@ -171,7 +176,7 @@ void create_world(hittable_list **d_world,moving_sphere **move_list,raw_img** im
 		(*d_world)->add(earth_moon);
 
 
-		// (*d_world)->add(test_sphere);
+		(*d_world)->add(test_sphere);
 
 		(*d_world)->add(sun);
 		move_list[0] = mercury;
@@ -218,7 +223,7 @@ void move_world(moving_sphere **move_list)
 // 		auto white_metal = new metal(color(1,0.7,1),0);
 
 
-// 		(*d_world)->add(new yz_rect(0, 555, 0, 555, 555, white_metal));
+// 		(*d_world)->add(new yz_rect(0, 555, 0, 555, 555, green));
 // 		(*d_world)->add(new yz_rect(0, 555, 0, 555, 0, red));
 // 		(*d_world)->add(new xz_rect(213, 343, 227, 332, 554, light));
 // 		(*d_world)->add(new xz_rect(0, 555, 0, 555, 0, white));
@@ -258,10 +263,10 @@ int main()
 	const double aspect_ratio = 16.0/9.0;
 	const int image_height = 720;
 	const int image_width = static_cast<int>(image_height*aspect_ratio);
-	const int sample_size = 5000;
+	const int sample_size = 2000;
 	const int max_depth = 50;
-	const int fps = 60;
-	const double running_time = 5;
+	const int fps = 25;
+	const double running_time = 10;
 	const int frames = fps*running_time;
 
 
@@ -272,6 +277,8 @@ int main()
 
 	// Camera
 	point3 lookfrom(200,200,100);
+	// point3 lookfrom(200,0,0);
+
     point3 lookat(0, 0, 0);
     vec3 vup(0,1,0);
 	// point3 lookfrom(278, 278, -800);

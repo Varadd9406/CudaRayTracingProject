@@ -6,7 +6,11 @@ class material
 public:
 	__device__
 	material() {}
-	__device__ virtual bool scatter(const ray &r_in, const hit_record &rec, color &attenuation, ray &scattered, curandState *thread_rand_state) const = 0;
+	__device__ virtual bool scatter(const ray &r_in, const hit_record &rec, color &attenuation, ray &scattered, double &pdf ,curandState *thread_rand_state) const = 0;
+	__device__ virtual double scattering_pdf(const ray& r_in, const hit_record& rec, const ray& scattered) const
+	{
+		return 1;
+	}
 	__device__ virtual color emitted(double u, double v, const point3 &p) const
 	{
 		return color(0, 0, 0);
@@ -22,16 +26,21 @@ public:
 		albedo = x;
 	}
 
-	__device__ bool scatter(const ray &r_in, const hit_record &rec, color &attenuation, ray &scattered, curandState *thread_rand_state) const override
+	__device__ bool scatter(const ray &r_in, const hit_record &rec, color &attenuation, ray &scattered, double &pdf,curandState *thread_rand_state) const override
 	{
-		vec3 scatter_direction = rec.normal + random_unit_vector(thread_rand_state);
-		if (scatter_direction.near_zero())
-		{
-			scatter_direction = rec.normal;
-		}
-		scattered = ray(rec.p, scatter_direction);
+		onb uvw;
+	    uvw.build_from_w(rec.normal);
+		vec3 scatter_direction = uvw.local(random_cosine_direction(thread_rand_state));
+		scattered = ray(rec.p, unit_vector(scatter_direction));
 		attenuation = albedo->value(rec.u, rec.v, rec.p);
+		pdf = dot(uvw.w(),scattered.direction())/pi;
 		return true;
+	}
+
+	__device__ double scattering_pdf(const ray& r_in, const hit_record& rec, const ray& scattered) const override
+	{
+		auto cosine = dot(rec.normal, unit_vector(scattered.direction()));
+		return cosine < 0 ? 0 : cosine/pi;
 	}
 
 public:
@@ -44,7 +53,7 @@ public:
 	__device__
 	metal(const color &a, double f) : albedo(a), fuzz(fmin(1.0, f)) {}
 
-	__device__ bool scatter(const ray &r_in, const hit_record &rec, color &attenuation, ray &scattered, curandState *thread_rand_state) const override
+	__device__ bool scatter(const ray &r_in, const hit_record &rec, color &attenuation, ray &scattered, double& pdf, curandState *thread_rand_state) const override
 	{
 		vec3 reflected = reflect(unit_vector(r_in.direction()), rec.normal);
 		scattered = ray(rec.p, reflected + fuzz * random_in_unit_sphere(thread_rand_state));
@@ -62,7 +71,7 @@ class dielectric : public material
 public:
 	__device__
 	dielectric(double index_of_refraction) : ir(index_of_refraction) {}
-	__device__ bool scatter(const ray &r_in, const hit_record &rec, color &attenuation, ray &scattered, curandState *thread_rand_state) const override
+	__device__ bool scatter(const ray &r_in, const hit_record &rec, color &attenuation, ray &scattered, double& pdf, curandState *thread_rand_state) const override
 	{
 		attenuation = color(1.0, 1.0, 1.0);
 		double refraction_ratio = rec.front_face ? (1.0 / ir) : ir;
@@ -100,7 +109,7 @@ class diffuse_light : public material
 public:
 	__device__
 	diffuse_light(textureMat *a) : emit(a) {}
-	__device__ bool scatter(const ray &r_in, const hit_record &rec, color &attenuation, ray &scattered, curandState *thread_rand_state) const override
+	__device__ bool scatter(const ray &r_in, const hit_record &rec, color &attenuation, ray &scattered,  double& pdf, curandState *thread_rand_state) const override
 	{
 		return false;
 	}
